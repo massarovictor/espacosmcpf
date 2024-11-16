@@ -5,7 +5,7 @@ import pandas as pd
 from database import supabase
 
 def painel_superadmin():
-    st.title("📅 LabManager")  # Título do sistema
+    st.title("📅 Espaços MCPF")  # Título do sistema
     st.subheader("Painel de Administração Geral")
     st.write("**EEEP Professora Maria Célia Pinheiro Falcão**")  # Nome da escola
     st.markdown("---")  # Linha separadora para organizar o layout
