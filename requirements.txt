@@ -1,5 +1,5 @@
-bcrypt==4.0.1
-python-dotenv==1.0.1
-pandas==2.2.3
-streamlit==1.27.0
-supabase-py==0.0.2
+bcrypt
+python-dotenv
+pandas
+streamlit
+supabase-py
