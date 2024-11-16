@@ -4,7 +4,7 @@ from datetime import date, datetime, timedelta
 import pandas as pd
 
 def painel_professor():
-    st.title("📅 LabManager")  # Título do sistema
+    st.title("📅 Espaços MCPF")  # Título do sistema
     st.subheader("Painel de Administração do Professor")
     st.write("**EEEP Professora Maria Célia Pinheiro Falcão**")
     st.markdown("---")  # Linha separadora para organizar o layout
