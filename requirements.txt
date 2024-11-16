@@ -1,0 +1,5 @@
+bcrypt
+python-dotenv
+pandas
+streamlit
+supabase-py
