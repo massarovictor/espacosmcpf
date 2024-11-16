@@ -42,15 +42,17 @@ def agendar_laboratorio():
         descricao = st.text_input("Descrição da Atividade", help="Insira uma breve descrição da atividade a ser realizada")
 
         if st.button("Confirmar Agendamento"):
-            if aulas_selecionadas:
+            if len(aulas_selecionadas) < 1:
+                st.warning("Por favor, selecione pelo menos uma aula para agendamento.")
+            elif descricao.strip() == '':
+                st.warning("Por favor, coloque uma descrição da atividade a ser feita no laboratório.")
+            else:
                 conflito, aulas_conflito = verificar_disponibilidade(laboratorio_id, data_agendamento, aulas_selecionadas)
                 if not conflito:
                     confirmar_agendamento_professor(laboratorio_id, data_agendamento, aulas_selecionadas, descricao)
                 else:
                     aulas_conflito_str = ', '.join([f"{aula}ª Aula" for aula in aulas_conflito])
                     st.error(f'O laboratório não está disponível nas seguintes aulas: {aulas_conflito_str}')
-            else:
-                st.warning("Por favor, selecione pelo menos uma aula para agendamento.")
     except Exception as e:
         st.error(f'Erro ao agendar laboratório: {e}')
 
@@ -82,6 +84,19 @@ def verificar_disponibilidade(laboratorio_id, data_agendamento, aulas_numeros):
         st.error(f'Erro ao verificar disponibilidade: {e}')
         return True, None
 
+def verificar_duplo_agendamento(usuario_id,laboratorio_id, data_agendamento, aulas_selecionadas):
+    aulas_selecionadas_pg = '{' + ','.join(map(str, aulas_selecionadas)) + '}' # convertendo [] para {} para a requisição no PostGres
+    try:
+        ocorrencia = supabase.table('agendamentos').select('*').eq('usuario_id', usuario_id).eq('laboratorio_id', laboratorio_id).eq('data_agendamento', data_agendamento.isoformat()).eq('aulas', aulas_selecionadas_pg).eq('status', 'pendente').execute()
+        # essa ocorrencia se refere a ocorrencia de algum registro igual e pendente no banco de dados, que caso seja encontrado, retorna um erro.
+        if (ocorrencia.data):
+            return 0
+        else:
+            return 1 # se não encontrar registro, retorna 1, para dizer que o programa pode prosseguir
+    except Exception as e:
+        st.error(e)
+    
+
 def confirmar_agendamento_professor(laboratorio_id, data_agendamento, aulas_selecionadas, descricao):
     usuario_id = st.session_state["usuario_id"]
     novo_agendamento = {
@@ -92,11 +107,15 @@ def confirmar_agendamento_professor(laboratorio_id, data_agendamento, aulas_sele
         'descricao': descricao,
         'status': 'pendente'
     }
-    try:
-        response = supabase.table('agendamentos').insert(novo_agendamento).execute()
-        st.success('Agendamento solicitado com sucesso! Aguardando aprovação.')
-    except Exception as e:
-        st.error(f'Erro ao salvar o agendamento: {e}')
+    verificacao = verificar_duplo_agendamento(usuario_id,laboratorio_id, data_agendamento, aulas_selecionadas)
+    if (verificacao == 1):
+        try:
+            response = supabase.table('agendamentos').insert(novo_agendamento).execute()
+            st.success('Agendamento solicitado com sucesso! Aguardando aprovação.')
+        except Exception as e:
+            st.error(f'Erro ao salvar o agendamento: {e}')
+    else:
+        st.error("Você já requisitou esse agendamento. Espere a revisão do administrador")
 
 def listar_agendamentos_professor():
     st.subheader("Meus Agendamentos")

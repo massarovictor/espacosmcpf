@@ -40,7 +40,7 @@ def painel_admin_laboratorio():
         st.session_state["tipo_usuario"] = None
         st.session_state["email"] = None
         st.session_state["usuario_id"] = None
-        st.experimental_rerun()
+        st.rerun()
 
 def gerenciar_agendamentos_pendentes(laboratorio_id):
     st.subheader("Agendamentos Pendentes")
@@ -83,7 +83,7 @@ def atualizar_status_agendamento(agendamento_id, novo_status):
     try:
         response = supabase.table('agendamentos').update({'status': novo_status}).eq('id', agendamento_id).execute()
         st.success(f'Agendamento {novo_status} com sucesso!')
-        st.experimental_rerun()
+        st.rerun()
     except Exception as e:
         st.error(f'Erro ao atualizar o status do agendamento: {e}')
 
@@ -164,7 +164,7 @@ def adicionar_horario_fixo(laboratorio_id):
                 try:
                     response = supabase.table('horarios_fixos').insert(novo_horario).execute()
                     st.success("Horário fixo adicionado com sucesso!")
-                    st.experimental_rerun()
+                    st.rerun()
                 except Exception as e:
                     st.error(f'Erro ao adicionar o horário fixo: {e}')
 
@@ -204,7 +204,7 @@ def editar_horario_fixo(horario):
                 try:
                     response = supabase.table('horarios_fixos').update(horario_atualizado).eq('id', horario['id']).execute()
                     st.success("Horário fixo atualizado com sucesso!")
-                    st.experimental_rerun()
+                    st.rerun()
                 except Exception as e:
                     st.error(f'Erro ao atualizar o horário fixo: {e}')
 
@@ -212,6 +212,6 @@ def remover_horario_fixo(horario_id):
     try:
         response = supabase.table('horarios_fixos').delete().eq('id', horario_id).execute()
         st.success("Horário fixo excluído com sucesso!")
-        st.experimental_rerun()
+        st.rerun()
     except Exception as e:
         st.error(f'Erro ao remover o horário fixo: {e}')

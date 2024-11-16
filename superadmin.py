@@ -24,7 +24,7 @@ def painel_superadmin():
         st.session_state["tipo_usuario"] = None
         st.session_state["email"] = None
         st.session_state["usuario_id"] = None
-        st.experimental_rerun()
+        st.rerun()
 
 def gerenciar_usuarios():
     st.subheader("Adicionar Novo Usuário")
@@ -57,7 +57,7 @@ def gerenciar_usuarios():
                         with col2:
                             if st.button("❌ Excluir Usuário", key=f"delete_user_{usuario['id']}"):
                                 st.session_state['confirm_delete_user_id'] = usuario['id']
-                                st.experimental_rerun()
+                                st.rerun()
 
     except Exception as e:
         st.error(f'Erro ao carregar os usuários: {e}')
@@ -93,7 +93,7 @@ def adicionar_usuario():
                     try:
                         response = supabase.table('users').insert(novo_usuario).execute()
                         st.success('Usuário adicionado com sucesso!')
-                        st.experimental_rerun()
+                        st.rerun()
                     except Exception as e:
                         st.error(f'Erro ao adicionar o usuário: {e}')
 
@@ -126,7 +126,7 @@ def editar_usuario(usuario):
                 try:
                     response = supabase.table('users').update(update_data).eq('id', usuario['id']).execute()
                     st.success('Usuário atualizado com sucesso!')
-                    st.experimental_rerun()
+                    st.rerun()
                 except Exception as e:
                     st.error(f'Erro ao atualizar o usuário: {e}')
 
@@ -147,14 +147,14 @@ def confirmar_exclusao_usuario(usuario_id):
                     response = supabase.table('users').delete().eq('id', usuario_id).execute()
                     st.success('Usuário excluído com sucesso!')
                     st.session_state['confirm_delete_user_id'] = None  # Resetar o estado
-                    st.experimental_rerun()
+                    st.rerun()
                 except Exception as e:
                     st.error(f'Erro ao excluir o usuário: {e}')
                     st.session_state['confirm_delete_user_id'] = None  # Resetar o estado
         with col2:
             if st.button('Cancelar', key=f'cancel_delete_user_{usuario_id}'):
                 st.session_state['confirm_delete_user_id'] = None  # Resetar o estado
-                st.experimental_rerun()
+                st.rerun()
     except Exception as e:
         st.error(f'Erro ao obter o usuário: {e}')
         st.session_state['confirm_delete_user_id'] = None  # Resetar o estado
@@ -200,7 +200,7 @@ def gerenciar_laboratorios():
                     with col2:
                         if st.button("❌ Excluir Laboratório", key=f"delete_lab_{lab['id']}"):
                             st.session_state['confirm_delete_lab_id'] = lab['id']
-                            st.experimental_rerun()
+                            st.rerun()
 
     except Exception as e:
         st.error(f'Erro ao carregar os laboratórios: {e}')
@@ -246,7 +246,7 @@ def adicionar_novo_laboratorio():
                             try:
                                 response = supabase.table('laboratorios').insert(novo_laboratorio).execute()
                                 st.success('Laboratório adicionado com sucesso!')
-                                st.experimental_rerun()
+                                st.rerun()
                             except Exception as e:
                                 st.error(f'Erro ao adicionar o laboratório: {e}')
                     except Exception as e:
@@ -294,7 +294,7 @@ def editar_laboratorio(lab):
                 try:
                     response = supabase.table('laboratorios').update(lab_atualizado).eq('id', lab['id']).execute()
                     st.success('Laboratório atualizado com sucesso!')
-                    st.experimental_rerun()
+                    st.rerun()
                 except Exception as e:
                     st.error(f'Erro ao atualizar o laboratório: {e}')
 
@@ -315,14 +315,14 @@ def confirmar_exclusao_laboratorio(lab_id):
                     response = supabase.table('laboratorios').delete().eq('id', lab_id).execute()
                     st.success('Laboratório excluído com sucesso!')
                     st.session_state['confirm_delete_lab_id'] = None  # Resetar o estado
-                    st.experimental_rerun()
+                    st.rerun()
                 except Exception as e:
                     st.error(f'Erro ao excluir o laboratório: {e}')
                     st.session_state['confirm_delete_lab_id'] = None  # Resetar o estado
         with col2:
             if st.button('Cancelar', key=f'cancel_delete_lab_{lab_id}'):
                 st.session_state['confirm_delete_lab_id'] = None  # Resetar o estado
-                st.experimental_rerun()
+                st.rerun()
     except Exception as e:
         st.error(f'Erro ao obter o laboratório: {e}')
         st.session_state['confirm_delete_lab_id'] = None  # Resetar o estado
