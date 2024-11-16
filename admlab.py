@@ -4,7 +4,7 @@ from datetime import date
 from database import supabase
 
 def painel_admin_laboratorio():
-    st.title("📅 LabManager")  # Título do sistema
+    st.title("📅 Espaços MCPF")  # Título do sistema
     st.subheader("Painel de Administração dos Laboratórios")
     st.write("**EEEP Professora Maria Célia Pinheiro Falcão**")
    
