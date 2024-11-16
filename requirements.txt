@@ -2,4 +2,4 @@ bcrypt
 python-dotenv
 pandas
 streamlit
-supabase-py
+st-supabase-connection==1.0.0
