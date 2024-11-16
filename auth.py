@@ -36,7 +36,7 @@ def criar_superadmin():
                 try:
                     response = supabase.table('users').insert(novo_usuario).execute()
                     st.success('Superadministrador criado com sucesso! Por favor, faça login.')
-                    st.experimental_rerun()
+                    st.rerun()
                 except Exception as e:
                     st.error(f'Erro ao criar o superadministrador: {e}')
 
@@ -63,7 +63,7 @@ def tela_login():
                         st.session_state["usuario_id"] = usuario['id']
 
                         st.success("Login realizado com sucesso!")
-                        st.experimental_rerun()
+                        st.rerun()
                     else:
                         st.error("Email ou senha incorretos.")
                 else:
@@ -76,4 +76,4 @@ def logout():
     st.session_state["tipo_usuario"] = None
     st.session_state["email"] = None
     st.session_state["usuario_id"] = None
-    st.experimental_rerun()
+    st.rerun()

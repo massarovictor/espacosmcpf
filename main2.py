@@ -56,7 +56,7 @@ def tela_login():
                 st.session_state["email"] = usuario['email']
                 st.session_state["usuario_id"] = usuario['usuario_id']
                 st.success("Login bem-sucedido!")
-                st.experimental_rerun()
+                st.rerun()
             else:
                 st.error("Credenciais inválidas ou erro de conexão. Tente novamente.")
 
@@ -95,7 +95,7 @@ def criar_superadmin():
                 try:
                     response = supabase.table('users').insert(novo_superadmin).execute()
                     st.success('Superadministrador criado com sucesso! Por favor, faça login.')
-                    st.experimental_rerun()
+                    st.rerun()
                 except Exception as e:
                     st.error(f'Erro ao criar o superadministrador: {e}')
 
@@ -151,7 +151,7 @@ def gerenciar_usuarios():
                     try:
                         response = supabase.table('users').insert(novo_usuario).execute()
                         st.success('Usuário adicionado com sucesso!')
-                        st.experimental_rerun()
+                        st.rerun()
                     except Exception as e:
                         st.error(f'Erro ao adicionar o usuário: {e}')
     except Exception as e:
@@ -175,7 +175,7 @@ def editar_usuario(usuario):
             try:
                 response = supabase.table('users').update(update_data).eq('id', usuario['id']).execute()
                 st.success('Usuário atualizado com sucesso!')
-                st.experimental_rerun()
+                st.rerun()
             except Exception as e:
                 st.error(f'Erro ao atualizar o usuário: {e}')
 
@@ -184,7 +184,7 @@ def excluir_usuario(usuario_id):
         try:
             response = supabase.table('users').delete().eq('id', usuario_id).execute()
             st.success('Usuário excluído com sucesso!')
-            st.experimental_rerun()
+            st.rerun()
         except Exception as e:
             st.error(f'Erro ao excluir o usuário: {e}')
 
@@ -244,7 +244,7 @@ def gerenciar_laboratorios():
                     try:
                         response = supabase.table('laboratorios').insert(novo_laboratorio).execute()
                         st.success('Laboratório adicionado com sucesso!')
-                        st.experimental_rerun()
+                        st.rerun()
                     except Exception as e:
                         st.error(f'Erro ao adicionar o laboratório: {e}')
     except Exception as e:
@@ -289,7 +289,7 @@ def editar_laboratorio(lab):
                 try:
                     response = supabase.table('laboratorios').update(lab_atualizado).eq('id', lab['id']).execute()
                     st.success('Laboratório atualizado com sucesso!')
-                    st.experimental_rerun()
+                    st.rerun()
                 except Exception as e:
                     st.error(f'Erro ao atualizar o laboratório: {e}')
 
@@ -298,7 +298,7 @@ def excluir_laboratorio(lab_id):
         try:
             response = supabase.table('laboratorios').delete().eq('id', lab_id).execute()
             st.success('Laboratório excluído com sucesso!')
-            st.experimental_rerun()
+            st.rerun()
         except Exception as e:
             st.error(f'Erro ao excluir o laboratório: {e}')
 
@@ -361,7 +361,7 @@ def atualizar_status_agendamento(agendamento_id, novo_status):
     try:
         response = supabase.table('agendamentos').update({'status': novo_status}).eq('id', agendamento_id).execute()
         st.success(f'Agendamento {novo_status} com sucesso!')
-        st.experimental_rerun()
+        st.rerun()
     except Exception as e:
         st.error(f'Erro ao atualizar o status do agendamento: {e}')
 
@@ -518,7 +518,7 @@ else:
             st.session_state["tipo_usuario"] = None
             st.session_state["email"] = None
             st.session_state["usuario_id"] = None
-            st.experimental_rerun()
+            st.rerun()
 
     tipo_usuario = st.session_state["tipo_usuario"]
     if tipo_usuario == "superadmin":
