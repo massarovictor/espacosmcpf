@@ -12,27 +12,16 @@ DIAS_SEMANA_INVERSO = {
 }
 
 def painel_admin_laboratorio():
-    """
-    Exibe o painel principal de administração de laboratórios 
-    para o usuário do tipo 'admlab'.
-    Possui três abas: Agendamentos Pendentes, Horários Fixos e Agenda do Laboratório.
-    Inclui botões de Refresh e Logout no topo.
-    """
-    st.title("📅 Espaços MCPF")
-    st.subheader("Painel de Administração dos Laboratórios")
-    st.write("**EEEP Professora Maria Célia Pinheiro Falcão**")
-
-    # Barra superior: Refresh e Logout
-    with st.container():
-        col1, col2, col3 = st.columns([4, 0.5, 1])
-        with col1:
-            st.write("")  # espaço ou outro texto
-        with col2:
-            if st.button("🔄", help="Recarregar a página"):
-                st.experimental_rerun()
-        with col3:
-            if st.button("Logout"):
-                efetuar_logout()
+    st.markdown(
+        """
+        <div style="text-align: center; margin-bottom: 1rem;">
+            <h2 style="margin-bottom: 0.6rem;">
+                🦉<span style="font-weight: 400;">Agenda</span><span style="font-weight: 700;">MCPF</span>
+            </h2>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
     administrador_id = st.session_state.get("usuario_id", None)
 
@@ -49,9 +38,13 @@ def painel_admin_laboratorio():
             return
 
         for lab in laboratorios:
-            st.subheader(f"Laboratório de {lab['nome']}")
+            st.subheader(lab['nome'])
 
-            tab1, tab2, tab3 = st.tabs(["Agendamentos Pendentes", "Horários Fixos", "Agenda do Laboratório"])
+            tab1, tab2, tab3 = st.tabs([
+                "Agendamentos Pendentes", 
+                "Horários Fixos", 
+                "Agenda do Espaço"
+            ])
 
             with tab1:
                 gerenciar_agendamentos_pendentes(lab['id'])
@@ -65,17 +58,22 @@ def painel_admin_laboratorio():
     except Exception as e:
         st.error(f'Erro ao carregar os laboratórios: {e}')
 
+    st.divider()
+    if st.button("Logout"):
+        efetuar_logout()
+
 # =============================================================================
 #                  GESTÃO DE AGENDAMENTOS PENDENTES
 # =============================================================================
 
 def gerenciar_agendamentos_pendentes(laboratorio_id):
     """
-    Exibe agendamentos pendentes em formato “expander” (padrão anterior),
-    ordenando localmente por ID para mostrar do mais antigo (ID menor) ao mais novo.
+    Exibe agendamentos pendentes ordenados por ID (mais antigo -> mais novo),
+    numerando cada solicitação e exibindo as opções de Aprovar/Rejeitar abaixo.
     """
-    st.subheader("Agendamentos Pendentes (Mais antigos em cima)")
+    st.subheader("Agendamentos Pendentes")
     try:
+        # Busca agendamentos pendentes do laboratório
         resp = supabase.table('agendamentos') \
                        .select('*') \
                        .eq('laboratorio_id', laboratorio_id) \
@@ -83,24 +81,26 @@ def gerenciar_agendamentos_pendentes(laboratorio_id):
                        .execute()
         agendamentos = resp.data or []
 
-        # Ordenação local por ID crescente
+        # Ordenação local por ID (o ID menor é o mais antigo)
         agendamentos.sort(key=lambda x: x['id'])
 
         if not agendamentos:
             st.info("Nenhum agendamento pendente.")
             return
 
-        # Apresentação padrão em expanders
-        for ag in agendamentos:
-            with st.expander(f"Solicitação #{ag['id']}", expanded=False):
-                exibir_agendamento_para_validacao(ag)
+        # Para numerar as solicitações do mais antigo (i=1) para o mais recente
+        for i, ag in enumerate(agendamentos, start=1):
+            # Em vez de mostrar o ID do agendamento no expander, mostramos "Solicitação #1", "#2", etc.
+            with st.expander(f"Solicitação #{i}", expanded=False):
+                exibir_agendamento_para_validacao(ag, i)
 
     except Exception as e:
         st.error(f"Erro ao carregar os agendamentos: {e}")
 
-def exibir_agendamento_para_validacao(agendamento):
+def exibir_agendamento_para_validacao(agendamento, num_solicitacao):
     """
-    Layout padrão: colunas e botões Aprovar/Rejeitar sem dataframe.
+    Exibe detalhes do agendamento e, abaixo, os botões Aprovar/Rejeitar.
+    Recebe também o número da solicitação para uso opcional, se quiser exibir internamente.
     """
     try:
         # Buscar email do professor
@@ -109,24 +109,24 @@ def exibir_agendamento_para_validacao(agendamento):
                             .eq('id', agendamento['usuario_id']) \
                             .execute().data
         professor_email = resp_user[0]['email'] if resp_user else "Desconhecido"
-        
+
+        # Aulas formatadas
         aulas_str = ", ".join([f"{a}ª Aula" for a in sorted(agendamento['aulas'])])
 
-        c1, c2 = st.columns([1.5, 2])
-        with c1:
-            st.write(f"**Professor:** {professor_email}")
-            st.write(f"**Data Agendada:** {agendamento['data_agendamento']}")
-            st.write(f"**Aulas:** {aulas_str}")
-            st.write(f"**Status:** {agendamento['status']}")
+        # Exibe as informações em sequência
+        st.write(f"**Professor:** {professor_email}")
+        st.write(f"**Data Agendada:** {agendamento['data_agendamento']}")
+        st.write(f"**Aulas:** {aulas_str}")
+        st.write(f"**Status:** {agendamento['status']}")
 
-        with c2:
-            colA, colB = st.columns(2)
-            with colA:
-                if st.button(f"✅ Aprovar #{agendamento['id']}", key=f"aprovar_{agendamento['id']}"):
-                    atualizar_status_agendamento(agendamento['id'], 'aprovado')
-            with colB:
-                if st.button(f"❌ Rejeitar #{agendamento['id']}", key=f"rejeitar_{agendamento['id']}"):
-                    atualizar_status_agendamento(agendamento['id'], 'rejeitado')
+        # Botões abaixo das informações
+        colA, colB = st.columns(2)
+        with colA:
+            if st.button("✅ Aprovar", key=f"aprovar_{agendamento['id']}"):
+                atualizar_status_agendamento(agendamento['id'], 'aprovado')
+        with colB:
+            if st.button("❌ Rejeitar", key=f"rejeitar_{agendamento['id']}"):
+                atualizar_status_agendamento(agendamento['id'], 'rejeitado')
 
     except Exception as e:
         st.error(f"Erro ao exibir agendamento: {e}")
@@ -136,8 +136,11 @@ def atualizar_status_agendamento(agendamento_id, novo_status):
     Atualiza status e recarrega a tela.
     """
     try:
-        supabase.table('agendamentos').update({'status': novo_status}).eq('id', agendamento_id).execute()
-        st.success(f"Agendamento {agendamento_id} {novo_status} com sucesso!")
+        supabase.table('agendamentos') \
+                .update({'status': novo_status}) \
+                .eq('id', agendamento_id) \
+                .execute()
+        st.success(f"Agendamento atualizado com sucesso! (status: {novo_status})")
         st.experimental_rerun()
     except Exception as e:
         st.error(f"Erro ao atualizar o status: {e}")
@@ -147,10 +150,14 @@ def atualizar_status_agendamento(agendamento_id, novo_status):
 # =============================================================================
 
 def gerenciar_horarios_fixos(laboratorio_id):
-    """
-    Exibe horários fixos no formato anterior (expander) e sem dataframe.
-    """
     st.subheader("Gerenciar Horários Fixos")
+    DIAS_SEMANA_INVERSO = {
+        0: 'Segunda',
+        1: 'Terça',
+        2: 'Quarta',
+        3: 'Quinta',
+        4: 'Sexta'
+    }
     try:
         resp = supabase.table('horarios_fixos') \
                        .select('*') \
@@ -189,9 +196,7 @@ def gerenciar_horarios_fixos(laboratorio_id):
 def adicionar_horario_fixo(lab_id):
     from datetime import date
     with st.form(key=f"form_novo_horario_{lab_id}"):
-        dias_semana_opcoes = {
-            "Segunda":0,"Terça":1,"Quarta":2,"Quinta":3,"Sexta":4
-        }
+        dias_semana_opcoes = {"Segunda":0,"Terça":1,"Quarta":2,"Quinta":3,"Sexta":4}
         dia_nome = st.selectbox("Dia da Semana", options=list(dias_semana_opcoes.keys()))
         dia_semana = dias_semana_opcoes[dia_nome]
         aulas = st.multiselect("Aulas", list(range(1,10)))
@@ -222,17 +227,11 @@ def adicionar_horario_fixo(lab_id):
                     st.error(f"Erro ao criar horário fixo: {e}")
 
 def editar_horario_fixo(h):
-    """
-    Exibe um formulário para editar os dados de um horário fixo,
-    sem mostrar o ID e ocupando a mesma largura dos demais componentes.
-    """
     from datetime import date
 
-    # CSS para deixar o st.form com largura total
     st.markdown(
         """
         <style>
-        /* Seletor que identifica formulários no Streamlit */
         [data-testid="stForm"] {
             max-width: 100% !important;
         }
@@ -241,12 +240,10 @@ def editar_horario_fixo(h):
         unsafe_allow_html=True
     )
 
-    # Container opcional para agrupar esse bloco
     with st.container():
-        st.markdown("### Editar Horário Fixo")  # Não exibimos o ID
+        st.markdown("### Editar Horário Fixo")
 
         with st.form(key=f'form_editar_horario_{h["id"]}'):
-            # Mapeamento dia da semana
             dias_semana_opcoes = {"Segunda":0,"Terça":1,"Quarta":2,"Quinta":3,"Sexta":4}
             dia_semana_nome_atual = {v:k for k,v in dias_semana_opcoes.items()}.get(h['dia_semana'],'Segunda')
 
@@ -283,7 +280,7 @@ def editar_horario_fixo(h):
                                 .eq('id', h['id']) \
                                 .execute()
                         st.success("Horário fixo atualizado com sucesso!")
-                        st.rerun()  # Força recarregamento da página
+                        st.rerun()
                     except Exception as e:
                         st.error(f"Erro ao atualizar o horário fixo: {e}")
 
@@ -295,17 +292,8 @@ def remover_horario_fixo(h_id):
     except Exception as e:
         st.error(f"Erro ao remover horário: {e}")
 
-# =============================================================================
-#            AGENDA DO LABORATÓRIO (EXIBINDO EM DATAFRAME)
-# =============================================================================
-
 def visualizar_agenda_laboratorio_admlab(lab_id, lab_nome):
-    """
-    Usa DataFrame para exibir Horários Fixos + Agendamentos Aprovados
-    em um intervalo de datas.
-    """
-    st.subheader(f"Agenda do {lab_nome}")
-
+    from datetime import date
     c1, c2 = st.columns(2)
     with c1:
         dt_i = st.date_input("Data Início", date.today())
@@ -317,12 +305,10 @@ def visualizar_agenda_laboratorio_admlab(lab_id, lab_nome):
         return
 
     if st.button("Consultar Agenda"):
-        # Montar lista de datas
-        datas = [dt_i + timedelta(days=i) for i in range((dt_f - dt_i).days+1)]
+        datas = [dt_i + timedelta(days=i) for i in range((dt_f - dt_i).days + 1)]
 
-        # Buscar horários fixos
-        hf = supabase.table('horarios_fixos').select('*').eq('laboratorio_id', lab_id).execute().data or []
-        # Buscar agendamentos aprovados
+        hf = supabase.table('horarios_fixos').select('*') \
+            .eq('laboratorio_id', lab_id).execute().data or []
         ag = supabase.table('agendamentos').select('*') \
             .eq('laboratorio_id', lab_id).eq('status','aprovado') \
             .gte('data_agendamento', dt_i.isoformat()) \
@@ -364,7 +350,6 @@ def visualizar_agenda_laboratorio_admlab(lab_id, lab_nome):
             st.info("Nenhum horário fixo ou agendamento aprovado no intervalo selecionado.")
             return
 
-        # Ordenar agenda_list por Data
         agenda_list.sort(key=lambda x: x["Data"])
         df_agenda = pd.DataFrame(agenda_list)
 
@@ -382,9 +367,6 @@ def visualizar_agenda_laboratorio_admlab(lab_id, lab_nome):
         )
 
 def buscar_email_usuario(usuario_id):
-    """
-    Busca e retorna o email de um usuário dado o seu ID.
-    """
     resp = supabase.table('users').select('email').eq('id', usuario_id).execute().data
     if resp:
         return resp[0]['email']
