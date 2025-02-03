@@ -8,6 +8,7 @@ from components import (
     success_message
 )
 
+
 def logout():
     """
     Botão de logout: limpa as variáveis de sessão e força recarregamento.
