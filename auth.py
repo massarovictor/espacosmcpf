@@ -1,79 +1,199 @@
-# auth.py
 import streamlit as st
 import bcrypt
-from database import supabase
+import re
+from database import supabase  # Ajuste conforme sua conexão/credenciais
+
+def aplicar_estilos():
+    """
+    Aplica estilos customizados para o layout do Streamlit.
+    """
+    st.markdown(
+        """
+        <style>
+            /* Layout principal */
+            .main {
+                padding: 2rem 1rem 4rem;
+                background-color: #f8f9fa;
+            }
+            
+            /* Título e cabeçalho */
+            .header {
+                text-align: center;
+                margin-bottom: 1rem;
+            }
+
+            /* Subtítulo (abaixo do cabeçalho) */
+            .subheader {
+                text-align: center;
+                margin-bottom: 2rem;
+                color: #444;
+            }
+
+            /* Formulário */
+            [data-testid="stForm"] {
+                border: 1px solid #e5e7eb;
+                border-radius: 0.5rem;
+                padding: 2rem;
+                background-color: #fff;
+                max-width: 400px;
+                margin: 0 auto; /* Centraliza o formulário */
+            }
+
+            /* Caixa de mensagem de erro */
+            .error-box {
+                padding: 1rem;
+                border-radius: 0.5rem;
+                background: #fee2e2;
+                color: #991b1b;
+                margin-bottom: 1rem;
+            }
+
+            /* Caixa de mensagem de sucesso */
+            .success-box {
+                padding: 1rem;
+                border-radius: 0.5rem;
+                background: #dcfce7;
+                color: #166534;
+                margin-bottom: 1rem;
+            }
+
+            /* Botões */
+            .stButton>button {
+                width: 100%;
+                transition: all 0.3s ease;
+                color: #fff;
+                background-color: #2c3e50;
+                border: none;
+                font-size: 1rem;
+                padding: 0.75rem;
+                border-radius: 0.5rem;
+                font-weight: 500;
+            }
+            .stButton>button:hover {
+                transform: scale(1.02);
+                background-color: #34495e;
+            }
+
+            /* Texto de aviso */
+            .aviso-acesso {
+                text-align: center;
+                margin-top: 1.5rem;
+                color: #666;
+                font-size: 0.9em;
+            }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
 
 def verificar_superadmin():
+    """Verifica a existência de pelo menos um superadmin no banco."""
     try:
         response = supabase.table('users').select('*').eq('tipo_usuario', 'superadmin').execute()
-        if response.data:
-            return True
-        else:
-            return False
+        return len(response.data or []) > 0
     except Exception as e:
-        st.error(f"Erro ao verificar o superadministrador: {e}")
+        st.error(f"Erro ao verificar superadmin: {str(e)}")
         return False
 
 def criar_superadmin():
-    st.title("Criar Superadministrador")
-    with st.form(key='create_superadmin_form'):
-        email = st.text_input("Email")
-        senha = st.text_input("Senha", type='password')
-        senha_confirmacao = st.text_input("Confirme a Senha", type='password')
-        submitted = st.form_submit_button("Criar Superadministrador")
-        if submitted:
-            if senha != senha_confirmacao:
-                st.warning('As senhas não coincidem.')
-            elif email.strip() == '' or senha.strip() == '':
-                st.warning('Email e senha são obrigatórios.')
-            else:
-                hashed_password = bcrypt.hashpw(senha.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-                novo_usuario = {
-                    'email': email.strip(),
-                    'password': hashed_password,
-                    'tipo_usuario': 'superadmin'
-                }
-                try:
-                    response = supabase.table('users').insert(novo_usuario).execute()
-                    st.success('Superadministrador criado com sucesso! Por favor, faça login.')
-                    st.rerun()
-                except Exception as e:
-                    st.error(f'Erro ao criar o superadministrador: {e}')
+    """
+    Caso não exista nenhum superadmin, implemente aqui a criação de um usuário superadmin.
+    Esta função é apenas um placeholder, ajuste conforme sua regra.
+    """
+    st.warning("Nenhum superadmin encontrado. Implemente a lógica de criação de superadmin.")
+
+def autenticar_usuario(email, senha):
+    """Autentica usuário no banco de dados."""
+    try:
+        response = supabase.table('users').select('*').eq('email', email.strip().lower()).execute()
+        if response.data:
+            usuario = response.data[0]
+            if bcrypt.checkpw(senha.encode('utf-8'), usuario['password'].encode('utf-8')):
+                return usuario
+        return None
+    except Exception as e:
+        st.error(f"Erro de autenticação: {str(e)}")
+        return None
+
+def atualizar_sessao(usuario):
+    """Atualiza os dados da sessão."""
+    st.session_state.update({
+        "autenticado": True,
+        "tipo_usuario": usuario['tipo_usuario'],
+        "email": usuario['email'],
+        "usuario_id": usuario['id']
+    })
 
 def tela_login():
-    st.title("📅 Espaços MCPF")  # Título do sistema
-    st.subheader("Sistema de Agendamento de Espaços")  # Nome da escola
-    st.write("**EEEP Professora Maria Célia Pinheiro Falcão**")  # Nome da escola
-    st.markdown("---")  # Linha separadora para organizar o layout
-    st.write("Por favor, faça o login para acessar o sistema.")
-    with st.form(key='login_form'):
-        email = st.text_input("Email")
-        senha = st.text_input("Senha", type='password')
-        submitted = st.form_submit_button("Login")
-        if submitted:
-            # Realizar autenticação
-            try:
-                response = supabase.table('users').select('*').eq('email', email.strip()).execute()
-                if response.data:
-                    usuario = response.data[0]
-                    if bcrypt.checkpw(senha.encode('utf-8'), usuario['password'].encode('utf-8')):
-                        st.session_state["autenticado"] = True
-                        st.session_state["tipo_usuario"] = usuario['tipo_usuario']
-                        st.session_state["email"] = usuario['email']
-                        st.session_state["usuario_id"] = usuario['id']
+    """
+    Interface de login. 
+    Mostra o emoji da coruja seguido de 'Agenda' em regular e 'MCPF' em negrito no título,
+    e a escola em fonte menor abaixo, tudo centralizado.
+    """
+    st.markdown(
+        """
+        <div style="text-align: center; margin-bottom: 2rem;">
+            <div style="font-size: 3rem;">
+                🦉<span style="font-weight: 400;">Agenda</span><span style="font-weight: 700;">MCPF</span>
+            </div>
+            
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
-                        st.success("Login realizado com sucesso!")
-                        st.rerun()
-                    else:
-                        st.error("Email ou senha incorretos.")
+    # Linha divisória para organização
+    st.divider()
+
+    # Formulário de login
+    with st.form(key='form_login'):
+        st.subheader("Acesso ao Sistema")
+
+        email = st.text_input(
+            "Email institucional",
+            placeholder="exemplo@prof.ce.gov.br",
+            help="Utilize o email fornecido pela instituição"
+        )
+
+        senha = st.text_input(
+            "Senha de acesso",
+            type='password',
+            placeholder="Digite sua senha"
+        )
+
+        if st.form_submit_button("Entrar"):
+            with st.spinner("Verificando credenciais..."):
+                usuario = autenticar_usuario(email, senha)
+                if usuario:
+                    atualizar_sessao(usuario)
+                    st.success("Autenticação realizada com sucesso!")
+                    st.experimental_rerun()
                 else:
-                    st.error("Email ou senha incorretos.")
-            except Exception as e:
-                st.error(f"Erro ao realizar o login: {e}")
+                    st.error("Credenciais inválidas ou usuário não encontrado")
 
-def logout():
-    st.session_state["autenticado"] = False
-    st.session_state["tipo_usuario"] = None
-    st.session_state["email"] = None
-    st.session_state["usuario_id"] = None
-    st.rerun()
+    # Mensagem de orientação para recuperar acesso
+    st.markdown(
+        '''
+        <div class="aviso-acesso">
+        Em caso de erro no acesso entre em contato com o administrador do sistema<br>
+        </div>
+        ''',
+        unsafe_allow_html=True
+    )
+
+def main():
+    aplicar_estilos()
+
+    if not verificar_superadmin():
+        criar_superadmin()
+    else:
+        if not st.session_state.get("autenticado"):
+            tela_login()
+        else:
+            st.success("Você já está autenticado!")
+            if st.button("Ir para o Dashboard"):
+                # Lógica futura de navegação para o Dashboard
+                pass
+
+if __name__ == "__main__":
+    main()
