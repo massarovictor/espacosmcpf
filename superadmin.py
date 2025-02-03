@@ -8,7 +8,6 @@ from components import (
     success_message
 )
 
-
 def logout():
     """
     Botão de logout: limpa as variáveis de sessão e força recarregamento.
@@ -27,7 +26,7 @@ def painel_superadmin():
     """
     Exibe o painel principal do superadmin, contendo as abas de 
     gestão de usuários e de laboratórios.
-    Agora, sem o botão de refresh, e com o botão de logout no final.
+    Agora, sem o botão de refresh e com o botão de logout posicionado abaixo.
     """
     # Cabeçalho inicial (nome do sistema)
     st.markdown(
@@ -56,7 +55,7 @@ def painel_superadmin():
             gerenciar_laboratorios()
 
     # Linha divisória e botão de logout no final
-    st.divider()
+    st.markdown("---")
     if st.button("Logout", help="Encerrar sessão"):
         logout()
 
@@ -260,7 +259,6 @@ def gerenciar_laboratorios():
             st.write(f"**Descrição:** {lab.get('descricao','N/A')}")
             st.write(f"**Capacidade:** {lab.get('capacidade','N/A')}")
             st.write(f"**Administrador:** {lab.get('administrador_id','Não atribuído')}")
-
             col1, col2 = st.columns([3, 1])
             with col1:
                 st.write("Detalhes adicionais se houver...")
@@ -300,7 +298,7 @@ def adicionar_laboratorio_form():
         admins = [u for u in carregar_usuarios() if u['tipo_usuario'] == 'admlab']
         admin_map = {adm['email']: adm['id'] for adm in admins}
         admin_emails = list(admin_map.keys())
-        admin_emails.insert(0, "Não atribuído")  # Opção para não atribuir
+        admin_emails.insert(0, "Não atribuído")
         admin_escolhido = st.selectbox("Administrador:", admin_emails, index=0)
         
         if st.form_submit_button("Salvar"):
@@ -352,7 +350,6 @@ def editar_laboratorio_form(lab):
             if resp_admin:
                 admin_atual_email = resp_admin[0]['email']
         
-        # Se não houver admin_atual_email, usar "Não atribuído" como default
         if admin_atual_email and admin_atual_email in admin_emails:
             index_admin = admin_emails.index(admin_atual_email)
         else:
