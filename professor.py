@@ -6,32 +6,27 @@ from database import supabase
 def painel_professor():
     """
     Painel do Professor:
-    - Botão de Refresh e Logout no topo (ao estilo admin-lab).
+    - Sem botão de Refresh.
+    - Botão de Logout ao final.
     - 3 abas:
-      1) Agendar Laboratório (formulário simples)
+      1) Agendar Espaço (formulário)
       2) Meus Agendamentos (DataFrame)
-      3) Agenda do Laboratório (DataFrame)
+      3) Agenda do Espaço (DataFrame)
     """
-    st.title("📅 Espaços MCPF")
-    st.subheader("Painel de Administração do Professor")
-    st.write("**EEEP Professora Maria Célia Pinheiro Falcão**")
-
-    # Barra superior: Refresh e Logout
-    with st.container():
-        col1, col2, col3 = st.columns([4, 0.5, 1])
-        with col1:
-            st.write("")  # Espaço ou texto adicional
-        with col2:
-            if st.button("🔄", help="Recarregar dados e atualizar a tela"):
-                st.experimental_rerun()
-        with col3:
-            if st.button("Logout"):
-                efetuar_logout()
-
-    st.markdown("---")
+    # Cabeçalho principal
+    st.markdown(
+        """
+        <div style="text-align: center; margin-bottom: 1rem;">
+            <h2 style="margin-bottom: 0.6rem;">
+                🦉<span style="font-weight: 400;">Agenda</span><span style="font-weight: 700;">MCPF</span>
+            </h2>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
     # Abas principais
-    tab1, tab2, tab3 = st.tabs(["Agendar Laboratório", "Meus Agendamentos", "Agenda do Laboratório"])
+    tab1, tab2, tab3 = st.tabs(["Agendar Espaço", "Meus Agendamentos", "Agenda do Espaço"])
 
     with tab1:
         agendar_laboratorio()
@@ -42,8 +37,13 @@ def painel_professor():
     with tab3:
         visualizar_agenda_laboratorio()
 
+    st.markdown("---")
+    # Botão de Logout no final
+    if st.button("Logout"):
+        efetuar_logout()
+
 # =============================================================================
-#                           1) AGENDAR LABORATÓRIO
+#                           1) AGENDAR ESPAÇO
 # =============================================================================
 
 def agendar_laboratorio():
@@ -63,27 +63,32 @@ def agendar_laboratorio():
             st.error("Nenhum laboratório disponível.")
             return
 
+        # Mapeando {nome_do_lab -> id_do_lab}
         lab_map = {lb['nome']: lb['id'] for lb in labs}
-        lab_nome = st.selectbox("Escolha o Laboratório", options=list(lab_map.keys()), key="lab_select_prof_agendar")
-        laboratorio_id = lab_map[lab_nome]
 
-        data_agendamento = st.date_input("Data do Agendamento", min_value=date.today())
-        aulas_opcoes = list(range(1, 10))
-        aulas_selecionadas = st.multiselect("Selecione a(s) aula(s)", aulas_opcoes)
-        descricao = st.text_input("Descrição da Atividade", help="Breve descrição da atividade")
+        with st.form(key="form_agendar_lab"):
+            lab_nome = st.selectbox("Escolha o Laboratório", options=list(lab_map.keys()))
+            laboratorio_id = lab_map[lab_nome]
 
-        if st.button("Confirmar Agendamento"):
-            if not aulas_selecionadas:
-                st.warning("Por favor, selecione pelo menos uma aula.")
-            elif not descricao.strip():
-                st.warning("Por favor, informe uma descrição da atividade.")
-            else:
-                conflito, aulas_conf = verificar_disponibilidade(laboratorio_id, data_agendamento, aulas_selecionadas)
-                if conflito:
-                    confl_str = ", ".join([f"{a}ª Aula" for a in aulas_conf])
-                    st.error(f"O laboratório não está disponível nas aulas: {confl_str}")
+            data_agendamento = st.date_input("Data do Agendamento", min_value=date.today())
+            aulas_opcoes = list(range(1, 10))
+            aulas_selecionadas = st.multiselect("Selecione a(s) aula(s)", aulas_opcoes)
+            descricao = st.text_input("Descrição da Atividade", help="Breve descrição da atividade")
+
+            submitted = st.form_submit_button("Confirmar Agendamento")
+            if submitted:
+                if not aulas_selecionadas:
+                    st.warning("Por favor, selecione pelo menos uma aula.")
+                elif not descricao.strip():
+                    st.warning("Por favor, informe uma descrição da atividade.")
                 else:
-                    confirmar_agendamento_professor(laboratorio_id, data_agendamento, aulas_selecionadas, descricao)
+                    conflito, aulas_conf = verificar_disponibilidade(laboratorio_id, data_agendamento, aulas_selecionadas)
+                    if conflito:
+                        confl_str = ", ".join([f"{a}ª Aula" for a in aulas_conf])
+                        st.error(f"O laboratório não está disponível nas aulas: {confl_str}")
+                    else:
+                        confirmar_agendamento_professor(laboratorio_id, data_agendamento, aulas_selecionadas, descricao)
+
     except Exception as e:
         st.error(f"Erro ao agendar laboratório: {e}")
 
@@ -96,12 +101,15 @@ def listar_agendamentos_professor():
     Exibe todos os agendamentos do professor em DataFrame,
     ordenados localmente por data_agendamento.
     """
-    st.subheader("Meus Agendamentos (DataFrame)")
+    st.subheader("Meus Agendamentos")
 
-    usuario_id = st.session_state["usuario_id"]
+    usuario_id = st.session_state.get("usuario_id")
+    if not usuario_id:
+        st.error("Usuário não autenticado. Faça login novamente.")
+        return
+
     try:
-        resp = supabase.table('agendamentos').select('*') \
-            .eq('usuario_id', usuario_id).execute()
+        resp = supabase.table('agendamentos').select('*').eq('usuario_id', usuario_id).execute()
         agendamentos = resp.data or []
 
         if not agendamentos:
@@ -150,9 +158,10 @@ def listar_agendamentos_professor():
 def visualizar_agenda_laboratorio():
     """
     Exibe a agenda (horários fixos + agendamentos aprovados) em DataFrame,
-    seguindo a lógica do admin-lab, num intervalo [data_inicio, data_fim].
+    num intervalo [data_inicio, data_fim].
     """
-    st.subheader("Agenda do Laboratório (DataFrame)")
+    st.subheader("Agenda do Laboratório")
+
     try:
         labs = supabase.table('laboratorios').select('id, nome').execute().data or []
         if not labs:
@@ -192,16 +201,17 @@ def visualizar_agenda_laboratorio():
 
 def montar_agenda_df(laboratorio_id, dt_i, dt_f):
     datas = [dt_i + timedelta(days=i) for i in range((dt_f - dt_i).days+1)]
+
     # Horários fixos
     hf = supabase.table('horarios_fixos').select('*') \
-         .eq('laboratorio_id', laboratorio_id).execute().data or []
+        .eq('laboratorio_id', laboratorio_id).execute().data or []
     # Agendamentos aprovados
     ag = supabase.table('agendamentos').select('*') \
-         .eq('laboratorio_id', laboratorio_id) \
-         .eq('status','aprovado') \
-         .gte('data_agendamento', dt_i.isoformat()) \
-         .lte('data_agendamento', dt_f.isoformat()) \
-         .execute().data or []
+        .eq('laboratorio_id', laboratorio_id) \
+        .eq('status','aprovado') \
+        .gte('data_agendamento', dt_i.isoformat()) \
+        .lte('data_agendamento', dt_f.isoformat()) \
+        .execute().data or []
 
     linhas = []
     # Processar horários fixos
@@ -239,13 +249,13 @@ def montar_agenda_df(laboratorio_id, dt_i, dt_f):
     return pd.DataFrame(linhas)
 
 # =============================================================================
-#   FUNÇÕES AUXILIARES: DISPONIBILIDADE E AGENDAMENTO
+#   FUNÇÕES AUXILIARES: DISPONIBILIDADE E CRIAÇÃO DE AGENDAMENTO
 # =============================================================================
 
 def verificar_disponibilidade(lab_id, data_ag, aulas):
     """
     Verifica conflitos com horários fixos e agendamentos aprovados.
-    Retorna (True, set_conflitos) se houver.
+    Retorna (True, set_conflitos) se houver conflito.
     """
     try:
         dia_semana = data_ag.weekday()
@@ -258,6 +268,7 @@ def verificar_disponibilidade(lab_id, data_ag, aulas):
         for f in fixos:
             dt_i = datetime.strptime(f['data_inicio'], "%Y-%m-%d").date()
             dt_f = datetime.strptime(f['data_fim'], "%Y-%m-%d").date()
+            # Se a data de agendamento está dentro do período
             if dt_i <= data_ag <= dt_f:
                 indisponiveis.update(f['aulas'])
 
@@ -278,6 +289,9 @@ def verificar_disponibilidade(lab_id, data_ag, aulas):
         return True, None
 
 def verificar_duplo_agendamento(usuario_id, laboratorio_id, data_ag, aulas):
+    """
+    Evita duplicar agendamento (status pendente) igual para o mesmo professor.
+    """
     a_str = '{' + ','.join(map(str,aulas)) + '}'
     try:
         resp = supabase.table('agendamentos').select('*') \
@@ -292,9 +306,14 @@ def verificar_duplo_agendamento(usuario_id, laboratorio_id, data_ag, aulas):
         return True
 
 def confirmar_agendamento_professor(lab_id, data_ag, aulas, desc):
-    user_id = st.session_state["usuario_id"]
+    user_id = st.session_state.get("usuario_id")
+    if not user_id:
+        st.error("Usuário não autenticado. Faça login novamente.")
+        return
+
+    # Verifica se já existe um agendamento pendente igual
     if verificar_duplo_agendamento(user_id, lab_id, data_ag, aulas):
-        st.error("Você já requisitou esse agendamento. Aguarde a revisão do administrador.")
+        st.error("Você já requisitou esse agendamento. Aguarde aprovação do administrador.")
         return
 
     novo = {
@@ -303,7 +322,7 @@ def confirmar_agendamento_professor(lab_id, data_ag, aulas, desc):
         "data_agendamento": data_ag.isoformat(),
         "aulas": aulas,
         "descricao": desc,
-        "status":"pendente"
+        "status": "pendente"
     }
     try:
         supabase.table('agendamentos').insert(novo).execute()
