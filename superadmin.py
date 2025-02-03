@@ -25,27 +25,25 @@ def logout():
 def painel_superadmin():
     """
     Exibe o painel principal do superadmin, contendo as abas de 
-    gestão de usuários e de laboratórios, além de dois botões:
-    - Atualizar dados (ícone)
-    - Logout
+    gestão de usuários e de laboratórios.
+    Agora, sem o botão de refresh, e com o botão de logout no final.
     """
-    st.title("📊 Dashboard de Administração")
+    # Cabeçalho inicial (nome do sistema)
+    st.markdown(
+        """
+        <div style="text-align: center; margin-bottom: 1rem;">
+            <h2 style="margin-bottom: 0.6rem;">
+                🦉<span style="font-weight: 400;">Agenda</span><span style="font-weight: 700;">MCPF</span>
+            </h2>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
     
-    # Seção de cabeçalho, com botões de atualização e logout
-    with st.container():
-        # Ajuste as proporções das colunas conforme preferir
-        col1, col2, col3 = st.columns([3, 0.4, 1])
-        with col1:
-            st.subheader("Gestão Integrada de Recursos")
-        with col2:
-            if st.button("🔄", help="Recarregar dados do servidor"):
-                # Recarregar a tela
-                st.experimental_rerun()
-        with col3:
-            if st.button("Logout", help="Encerrar sessão"):
-                logout()
-    
-    # Abas de Usuários e Laboratórios
+    # Subtítulo ou título secundário
+    st.subheader("Gestão Integrada de Recursos")
+
+    # Criação das abas de Usuários e Laboratórios
     tab1, tab2 = st.tabs(["👥 Gestão de Usuários", "🔬 Gestão de Laboratórios"])
     
     with tab1:
@@ -55,6 +53,11 @@ def painel_superadmin():
     with tab2:
         with loading_spinner():
             gerenciar_laboratorios()
+
+    # Linha divisória e botão de logout no final
+    st.divider()
+    if st.button("Logout", help="Encerrar sessão"):
+        logout()
 
 # =============================================================================
 #                            GESTÃO DE USUÁRIOS
@@ -244,7 +247,7 @@ def gerenciar_laboratorios():
         st.info("Nenhum laboratório cadastrado.")
         return
     
-    # Campo de pesquisa (se desejar)
+    # Campo de pesquisa (opcional)
     search_query = st.text_input("🔍 Pesquisar por nome do laboratório...")
     search_query_lower = search_query.lower().strip()
     filtered_labs = [lab for lab in laboratorios if search_query_lower in lab['nome'].lower()]
