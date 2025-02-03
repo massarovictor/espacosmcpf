@@ -1,328 +1,407 @@
-# superadmin.py
 import streamlit as st
 import bcrypt
-import pandas as pd
 from database import supabase
+from components import (
+    loading_spinner,
+    confirm_dialog,
+    error_handler,
+    success_message
+)
+
+def logout():
+    """
+    Botão de logout: limpa as variáveis de sessão e força recarregamento.
+    """
+    st.session_state["autenticado"] = False
+    st.session_state["tipo_usuario"] = None
+    st.session_state["email"] = None
+    st.session_state["usuario_id"] = None
+    st.experimental_rerun()
+
+# =============================================================================
+#                           PAINEL SUPERADMIN
+# =============================================================================
 
 def painel_superadmin():
-    st.title("📅 Espaços MCPF")  # Título do sistema
-    st.subheader("Painel de Administração Geral")
-    st.write("**EEEP Professora Maria Célia Pinheiro Falcão**")  # Nome da escola
-    st.markdown("---")  # Linha separadora para organizar o layout
-    tab1, tab2 = st.tabs(["Gerenciar Usuários", "Gerenciar Laboratórios"])
-
+    """
+    Exibe o painel principal do superadmin, contendo as abas de 
+    gestão de usuários e de laboratórios, além de dois botões:
+    - Atualizar dados (ícone)
+    - Logout
+    """
+    st.title("📊 Dashboard de Administração")
+    
+    # Seção de cabeçalho, com botões de atualização e logout
+    with st.container():
+        # Ajuste as proporções das colunas conforme preferir
+        col1, col2, col3 = st.columns([3, 0.4, 1])
+        with col1:
+            st.subheader("Gestão Integrada de Recursos")
+        with col2:
+            if st.button("🔄", help="Recarregar dados do servidor"):
+                # Recarregar a tela
+                st.experimental_rerun()
+        with col3:
+            if st.button("Logout", help="Encerrar sessão"):
+                logout()
+    
+    # Abas de Usuários e Laboratórios
+    tab1, tab2 = st.tabs(["👥 Gestão de Usuários", "🔬 Gestão de Laboratórios"])
+    
     with tab1:
-        gerenciar_usuarios()
-
+        with loading_spinner():
+            gerenciar_usuarios()
+    
     with tab2:
-        gerenciar_laboratorios()
+        with loading_spinner():
+            gerenciar_laboratorios()
 
-    # Adicionar o botão de logout ao final
-    st.markdown("---")  # Linha separadora
-    if st.button("Logout"):
-        st.session_state["autenticado"] = False
-        st.session_state["tipo_usuario"] = None
-        st.session_state["email"] = None
-        st.session_state["usuario_id"] = None
-        st.rerun()
+# =============================================================================
+#                            GESTÃO DE USUÁRIOS
+# =============================================================================
 
 def gerenciar_usuarios():
-    st.subheader("Adicionar Novo Usuário")
-    adicionar_usuario()
+    """
+    Exibe a interface para:
+    - Adicionar novo usuário
+    - Listar usuários (exceto superadmin)
+    - Pesquisar por email
+    - Editar e excluir usuários
+    """
+    todos_usuarios = carregar_usuarios() or []
+    # Filtra para não incluir superadmins
+    usuarios = [u for u in todos_usuarios if u['tipo_usuario'] != 'superadmin']
     
-    st.subheader("Usuários Cadastrados")
-    try:
-        # Listar usuários existentes
-        response = supabase.table('users').select('id', 'email', 'tipo_usuario').execute()
-        usuarios = response.data
-        if not usuarios:
-            st.info("Nenhum usuário cadastrado.")
-            return
+    with st.expander("➕ Novo Usuário", expanded=True):
+        adicionar_usuario()
 
-        # Inicializar o estado se necessário
-        if 'confirm_delete_user_id' not in st.session_state:
-            st.session_state['confirm_delete_user_id'] = None
+    st.subheader("📋 Lista de Usuários")
+    if not usuarios:
+        return st.info("Nenhum usuário cadastrado.", icon="ℹ️")
 
-        if st.session_state['confirm_delete_user_id']:
-            # Exibir a confirmação de exclusão
-            confirmar_exclusao_usuario(st.session_state['confirm_delete_user_id'])
-        else:
-            for usuario in usuarios:
-                if usuario['tipo_usuario'] != 'superadmin':
-                    with st.expander(f"{usuario['email']} - {usuario['tipo_usuario']}"):
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            if st.button("📝 Editar Usuário", key=f"edit_user_{usuario['id']}"):
-                                editar_usuario(usuario)
-                        with col2:
-                            if st.button("❌ Excluir Usuário", key=f"delete_user_{usuario['id']}"):
-                                st.session_state['confirm_delete_user_id'] = usuario['id']
-                                st.rerun()
+    # Campo de pesquisa
+    search_query = st.text_input("🔍 Pesquisar usuário por email...")
+    search_query_lower = search_query.lower().strip()
+    filtered_users = [u for u in usuarios if search_query_lower in u['email'].lower()]
+    
+    # Exibir lista de usuários em expansores
+    for usuario in filtered_users:
+        with st.expander(f"{usuario['email']} ({usuario['tipo_usuario']})"):
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                exibir_detalhes_usuario(usuario)
+            with col2:
+                # Botões de Editar e Excluir
+                if st.button("✏️ Editar", key=f"edit_{usuario['id']}"):
+                    st.session_state['editar_usuario'] = usuario
+                if st.button("🗑️ Excluir", key=f"del_{usuario['id']}"):
+                    confirm_dialog(
+                        title="Confirmação de Exclusão",
+                        message=f"Excluir usuário {usuario['email']}?",
+                        on_confirm=lambda: excluir_usuario(usuario['id'])
+                    )
 
-    except Exception as e:
-        st.error(f'Erro ao carregar os usuários: {e}')
+    # Exibir formulário de edição, se selecionado
+    if "editar_usuario" in st.session_state:
+        editar_usuario(st.session_state['editar_usuario'])
+
+def carregar_usuarios():
+    """
+    Carrega todos os usuários do banco (sem cache)
+    para que a lista seja sempre atualizada.
+    """
+    return supabase.table('users').select('id, email, tipo_usuario').execute().data
+
+def exibir_detalhes_usuario(usuario):
+    """
+    Exibe informações do usuário (email, tipo, etc.).
+    Pode ser expandido para mais detalhes, se existirem no banco.
+    """
+    st.write(f"**Email:** {usuario['email']}")
+    st.write(f"**Tipo de Usuário:** {usuario['tipo_usuario']}")
 
 def adicionar_usuario():
-    with st.expander("Adicionar Novo Usuário", expanded=True):
-        with st.form(key='add_user_form'):
-            col1, col2 = st.columns(2)
-            with col1:
-                novo_email = st.text_input("Email", help="Digite um e-mail válido")
-            with col2:
-                novo_tipo = st.radio("Tipo de Usuário", options=['admlab', 'professor'], help="Selecione o tipo de usuário")
-            col3, col4 = st.columns(2)
-            with col3:
-                nova_senha = st.text_input("Senha", type='password', help="Digite uma senha segura")
-            with col4:
-                senha_confirmacao = st.text_input("Confirme a Senha", type='password', help="Confirme a senha")
+    """
+    Mostra um formulário para criar um novo usuário com email, tipo e senha.
+    """
+    with st.form(key='form_adicionar_usuario'):
+        email = st.text_input("Email:")
+        tipo_usuario = st.radio("Tipo de usuário:", ['admlab', 'professor'])
+        senha = st.text_input("Senha:", type="password")
+        senha_confirmacao = st.text_input("Confirme a senha:", type="password")
+        
+        if st.form_submit_button("Salvar"):
+            if not email.strip() or not senha.strip():
+                st.warning("Email e senha são obrigatórios!")
+            elif senha != senha_confirmacao:
+                st.warning("As senhas não conferem!")
+            else:
+                criar_usuario(email, senha, tipo_usuario)
+                st.experimental_rerun()
 
-            submitted = st.form_submit_button("✅ Adicionar Usuário")
-            if submitted:
-                if nova_senha != senha_confirmacao:
-                    st.warning('As senhas não coincidem.')
-                elif novo_email.strip() == '' or nova_senha.strip() == '':
-                    st.warning('Email e senha são obrigatórios.')
-                else:
-                    # Hash da senha
-                    hashed_password = bcrypt.hashpw(nova_senha.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-                    novo_usuario = {
-                        'email': novo_email.strip(),
-                        'password': hashed_password,
-                        'tipo_usuario': novo_tipo
-                    }
-                    try:
-                        response = supabase.table('users').insert(novo_usuario).execute()
-                        st.success('Usuário adicionado com sucesso!')
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f'Erro ao adicionar o usuário: {e}')
+@error_handler
+def criar_usuario(email, senha, tipo_usuario):
+    """
+    Cria um novo registro de usuário no Supabase.
+    Verifica se o email já existe, caso sim, exibe aviso e não faz o insert.
+    """
+    # Verificar duplicidade de email
+    existente = supabase.table('users').select('id').eq('email', email.strip()).execute().data
+    if existente:
+        st.warning("O usuário já existe no banco de dados. Defina outro e-mail.")
+        return
+
+    hashed_password = bcrypt.hashpw(senha.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    novo_usuario = {
+        'email': email.strip(),
+        'password': hashed_password,
+        'tipo_usuario': tipo_usuario
+    }
+    supabase.table('users').insert(novo_usuario).execute()
+    success_message("Usuário criado com sucesso!")
 
 def editar_usuario(usuario):
-    st.subheader(f"Editar Usuário: {usuario['email']}")
-    with st.form(key=f'edit_user_form_{usuario["id"]}'):
-        col1, col2 = st.columns(2)
-        with col1:
-            novo_email = st.text_input("Email", value=usuario['email'], help="Atualize o email do usuário")
-        with col2:
-            novo_tipo = st.radio("Tipo de Usuário", options=['admlab', 'professor'], index=['admlab', 'professor'].index(usuario['tipo_usuario']), help="Selecione o novo tipo de usuário")
-        col3, col4 = st.columns(2)
-        with col3:
-            nova_senha = st.text_input("Nova Senha (deixe em branco para não alterar)", type='password', help="Digite uma nova senha")
-        with col4:
-            senha_confirmacao = st.text_input("Confirme a Nova Senha", type='password', help="Confirme a nova senha")
-
-        submitted = st.form_submit_button("💾 Atualizar Dados")
-        if submitted:
-            if nova_senha != senha_confirmacao:
-                st.warning('As senhas não coincidem.')
+    """
+    Exibe um formulário para editar os dados de um usuário existente,
+    incluindo possibilidade de mudar senha e tipo de usuário.
+    """
+    st.subheader(f"Editando Usuário: {usuario['email']}")
+    with st.form(key=f"form_editar_usuario_{usuario['id']}"):
+        email_novo = st.text_input("Email:", value=usuario['email'])
+        tipo_novo = st.radio(
+            "Tipo de usuário:",
+            ['admlab','professor'],
+            index=['admlab','professor'].index(usuario['tipo_usuario'])
+            if usuario['tipo_usuario'] in ['admlab','professor'] else 0
+        )
+        senha_nova = st.text_input("Nova senha (opcional):", type="password")
+        senha_confirma = st.text_input("Confirme a nova senha:", type="password")
+        
+        if st.form_submit_button("Atualizar"):
+            if senha_nova and senha_nova != senha_confirma:
+                st.warning("As senhas não conferem!")
             else:
-                update_data = {
-                    'email': novo_email.strip(),
-                    'tipo_usuario': novo_tipo
-                }
-                if nova_senha.strip() != '':
-                    hashed_password = bcrypt.hashpw(nova_senha.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-                    update_data['password'] = hashed_password
-                try:
-                    response = supabase.table('users').update(update_data).eq('id', usuario['id']).execute()
-                    st.success('Usuário atualizado com sucesso!')
-                    st.rerun()
-                except Exception as e:
-                    st.error(f'Erro ao atualizar o usuário: {e}')
+                atualizar_usuario(usuario['id'], email_novo, tipo_novo, senha_nova)
+                st.experimental_rerun()
 
-def confirmar_exclusao_usuario(usuario_id):
-    try:
-        # Obter o usuário pelo ID
-        response = supabase.table('users').select('email').eq('id', usuario_id).execute()
-        if not response.data:
-            st.error('Usuário não encontrado.')
-            st.session_state['confirm_delete_user_id'] = None  # Resetar o estado
-            return
-        usuario = response.data[0]
-        st.warning(f"Tem certeza que deseja excluir o usuário **{usuario['email']}**? Esta ação não pode ser desfeita.")
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button('❌ Confirmar Exclusão', key=f'confirm_delete_user_{usuario_id}'):
-                try:
-                    response = supabase.table('users').delete().eq('id', usuario_id).execute()
-                    st.success('Usuário excluído com sucesso!')
-                    st.session_state['confirm_delete_user_id'] = None  # Resetar o estado
-                    st.rerun()
-                except Exception as e:
-                    st.error(f'Erro ao excluir o usuário: {e}')
-                    st.session_state['confirm_delete_user_id'] = None  # Resetar o estado
-        with col2:
-            if st.button('Cancelar', key=f'cancel_delete_user_{usuario_id}'):
-                st.session_state['confirm_delete_user_id'] = None  # Resetar o estado
-                st.rerun()
-    except Exception as e:
-        st.error(f'Erro ao obter o usuário: {e}')
-        st.session_state['confirm_delete_user_id'] = None  # Resetar o estado
+@error_handler
+def atualizar_usuario(usuario_id, email_novo, tipo_novo, senha_nova=None):
+    """
+    Atualiza os dados do usuário no Supabase.
+    Se a senha_nova for informada, também atualiza a senha (hashed).
+    """
+    update_data = {
+        'email': email_novo.strip(),
+        'tipo_usuario': tipo_novo
+    }
+    if senha_nova:
+        hashed = bcrypt.hashpw(senha_nova.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        update_data['password'] = hashed
+    
+    supabase.table('users').update(update_data).eq('id', usuario_id).execute()
+    
+    # Ao término da edição, remover chave do st.session_state para não reabrir formulário
+    if 'editar_usuario' in st.session_state:
+        del st.session_state['editar_usuario']
+    
+    success_message("Usuário atualizado com sucesso!")
+
+@error_handler
+def excluir_usuario(usuario_id):
+    """
+    Exclui um usuário do Supabase a partir de seu ID. 
+    Em caso de sucesso, exibe mensagem de sucesso e recarrega a tela.
+    """
+    supabase.table('users').delete().eq('id', usuario_id).execute()
+    success_message("Usuário excluído com sucesso!")
+    
+    # Se o usuário em edição for o mesmo excluído, remove do session_state
+    if 'editar_usuario' in st.session_state and st.session_state['editar_usuario']['id'] == usuario_id:
+        del st.session_state['editar_usuario']
+    
+    st.experimental_rerun()
+
+# =============================================================================
+#                            GESTÃO DE LABORATÓRIOS
+# =============================================================================
 
 def gerenciar_laboratorios():
-    st.subheader("Adicionar Novo Laboratório")
-    adicionar_novo_laboratorio()
+    """
+    Exibe a gestão de laboratórios (listar, criar, editar e excluir).
+    """
+    st.subheader("Gestão de Laboratórios")
     
-    st.subheader("Laboratórios Cadastrados")
-    try:
-        response = supabase.table('laboratorios').select('*').execute()
-        laboratorios = response.data
-        if not laboratorios:
-            st.info("Nenhum laboratório cadastrado.")
-            return
+    # Carregar laboratórios diretamente (sem cache)
+    laboratorios = carregar_labs() or []
+    
+    # Formulário para adicionar novo laboratório
+    with st.expander("➕ Novo Laboratório", expanded=True):
+        adicionar_laboratorio_form()
+    
+    # Listar laboratórios existentes
+    st.subheader("📋 Lista de Laboratórios")
+    if not laboratorios:
+        st.info("Nenhum laboratório cadastrado.")
+        return
+    
+    # Campo de pesquisa (se desejar)
+    search_query = st.text_input("🔍 Pesquisar por nome do laboratório...")
+    search_query_lower = search_query.lower().strip()
+    filtered_labs = [lab for lab in laboratorios if search_query_lower in lab['nome'].lower()]
+    
+    # Exibir lista de laboratórios em expansores
+    for lab in filtered_labs:
+        with st.expander(f"{lab['nome']}"):
+            st.write(f"**ID:** {lab['id']}")
+            st.write(f"**Descrição:** {lab.get('descricao','N/A')}")
+            st.write(f"**Capacidade:** {lab.get('capacidade','N/A')}")
+            st.write(f"**Administrador:** {lab.get('administrador_id','Não atribuído')}")
 
-        # Inicializar o estado se necessário
-        if 'confirm_delete_lab_id' not in st.session_state:
-            st.session_state['confirm_delete_lab_id'] = None
-
-        if st.session_state['confirm_delete_lab_id']:
-            # Exibir a confirmação de exclusão
-            confirmar_exclusao_laboratorio(st.session_state['confirm_delete_lab_id'])
-        else:
-            for lab in laboratorios:
-                with st.expander(f"{lab['nome']}"):
-                    st.write(f"**Descrição:** {lab.get('descricao', '')}")
-                    st.write(f"**Capacidade:** {lab.get('capacidade', 'N/A')}")
-                    # Obter o email do administrador
-                    admin_email = 'Não atribuído'
-                    if lab['administrador_id']:
-                        try:
-                            response_admin = supabase.table('users').select('email').eq('id', lab['administrador_id']).execute()
-                            if response_admin.data:
-                                admin_email = response_admin.data[0]['email']
-                        except Exception as e:
-                            st.error(f'Erro ao obter o administrador: {e}')
-                    st.write(f"**Administrador:** {admin_email}")
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        if st.button("📝 Editar Laboratório", key=f"edit_lab_{lab['id']}"):
-                            editar_laboratorio(lab)
-                    with col2:
-                        if st.button("❌ Excluir Laboratório", key=f"delete_lab_{lab['id']}"):
-                            st.session_state['confirm_delete_lab_id'] = lab['id']
-                            st.rerun()
-
-    except Exception as e:
-        st.error(f'Erro ao carregar os laboratórios: {e}')
-
-def adicionar_novo_laboratorio():
-    with st.expander("Adicionar Novo Laboratório", expanded=True):
-        with st.form(key='add_lab_form'):
-            import re  # Import necessário para manipulação de strings
-            col1, col2 = st.columns(2)
+            col1, col2 = st.columns([3, 1])
             with col1:
-                nome = st.text_input("Nome do Laboratório", help="Digite o nome do laboratório")
+                st.write("Detalhes adicionais se houver...")
             with col2:
-                capacidade = st.number_input("Capacidade", min_value=0, step=1, help="Capacidade máxima do laboratório")
-            descricao = st.text_area("Descrição", help="Descrição opcional do laboratório")
-            # Selecionar um administrador
-            try:
-                response_admins = supabase.table('users').select('id', 'email').eq('tipo_usuario', 'admlab').execute()
-                admin_options = {admin['email']: admin['id'] for admin in response_admins.data} if response_admins.data else {}
-            except Exception as e:
-                st.error(f'Erro ao carregar administradores: {e}')
-                admin_options = {}
-            administrador_email = st.selectbox("Administrador do Laboratório (opcional)", options=['Não atribuído'] + list(admin_options.keys()), help="Selecione o administrador do laboratório")
-            submitted = st.form_submit_button("✅ Adicionar Laboratório")
-            if submitted:
-                if nome.strip() == '':
-                    st.warning('O nome do laboratório é obrigatório.')
-                else:
-                    # Normalizar o nome para comparação
-                    nome_normalizado = re.sub(' +', ' ', nome.strip().lower())
-                    try:
-                        response = supabase.table('laboratorios').select('nome').execute()
-                        nomes_existentes = [re.sub(' +', ' ', lab['nome'].strip().lower()) for lab in response.data]
-                        if nome_normalizado in nomes_existentes:
-                            st.warning('Já existe um laboratório com este nome. Por favor, escolha outro nome.')
-                        else:
-                            administrador_id = admin_options.get(administrador_email) if administrador_email != 'Não atribuído' else None
-                            novo_laboratorio = {
-                                'nome': nome.strip(),
-                                'descricao': descricao.strip(),
-                                'capacidade': int(capacidade),
-                                'administrador_id': administrador_id
-                            }
-                            try:
-                                response = supabase.table('laboratorios').insert(novo_laboratorio).execute()
-                                st.success('Laboratório adicionado com sucesso!')
-                                st.rerun()
-                            except Exception as e:
-                                st.error(f'Erro ao adicionar o laboratório: {e}')
-                    except Exception as e:
-                        st.error(f'Erro ao verificar a existência do laboratório: {e}')
+                if st.button("✏️ Editar", key=f"edit_lab_{lab['id']}"):
+                    st.session_state['editar_laboratorio'] = lab
+                if st.button("🗑️ Excluir", key=f"del_lab_{lab['id']}"):
+                    confirm_dialog(
+                        title="Confirmação de Exclusão",
+                        message=f"Excluir laboratório {lab['nome']}?",
+                        on_confirm=lambda: excluir_laboratorio(lab['id'])
+                    )
+    
+    # Se for necessário editar um laboratório, exiba o formulário
+    if 'editar_laboratorio' in st.session_state:
+        editar_laboratorio_form(st.session_state['editar_laboratorio'])
 
-def editar_laboratorio(lab):
-    st.subheader(f"Editar Laboratório: {lab['nome']}")
-    with st.form(key=f'edit_lab_form_{lab["id"]}'):
-        col1, col2 = st.columns(2)
-        with col1:
-            nome = st.text_input("Nome do Laboratório", value=lab['nome'], help="Atualize o nome do laboratório")
-        with col2:
-            capacidade = st.number_input("Capacidade", min_value=0, step=1, value=lab.get('capacidade') or 0, help="Atualize a capacidade do laboratório")
-        descricao = st.text_area("Descrição", value=lab.get('descricao', ''), help="Atualize a descrição do laboratório")
-        # Selecionar um administrador
-        try:
-            response_admins = supabase.table('users').select('id', 'email').eq('tipo_usuario', 'admlab').execute()
-            admin_options = {admin['email']: admin['id'] for admin in response_admins.data} if response_admins.data else {}
-        except Exception as e:
-            st.error(f'Erro ao carregar administradores: {e}')
-            admin_options = {}
-        current_admin_email = 'Não atribuído'
-        if lab['administrador_id']:
-            try:
-                response_admin = supabase.table('users').select('email').eq('id', lab['administrador_id']).execute()
-                if response_admin.data:
-                    current_admin_email = response_admin.data[0]['email']
-            except Exception as e:
-                st.error(f'Erro ao obter o administrador atual: {e}')
-        admin_emails = ['Não atribuído'] + list(admin_options.keys())
-        admin_index = admin_emails.index(current_admin_email) if current_admin_email in admin_emails else 0
-        administrador_email = st.selectbox("Administrador do Laboratório (opcional)", options=admin_emails, index=admin_index, help="Selecione o administrador do laboratório")
-        submitted = st.form_submit_button("💾 Atualizar Dados")
-        if submitted:
-            if nome.strip() == '':
-                st.warning('O nome do laboratório é obrigatório.')
+def carregar_labs():
+    """
+    Carrega todos os laboratórios do banco (sem cache),
+    para que fiquem sempre atualizados.
+    """
+    return supabase.table('laboratorios').select('*').execute().data
+
+def adicionar_laboratorio_form():
+    """
+    Exibe um formulário para criar um novo laboratório.
+    Ajuste o nome dos campos de acordo com a estrutura do seu banco.
+    """
+    with st.form(key='form_adicionar_laboratorio'):
+        nome = st.text_input("Nome do Laboratório:")
+        descricao = st.text_area("Descrição:")
+        capacidade = st.number_input("Capacidade:", min_value=0, step=1)
+        
+        # Caso queira associar a um administrador específico (opcional)
+        st.write("Selecione o administrador responsável (opcional):")
+        admins = [u for u in carregar_usuarios() if u['tipo_usuario'] == 'admlab']
+        admin_map = {adm['email']: adm['id'] for adm in admins}
+        admin_emails = list(admin_map.keys())
+        admin_emails.insert(0, "Não atribuído")  # Opção para não atribuir
+        admin_escolhido = st.selectbox("Administrador:", admin_emails, index=0)
+        
+        if st.form_submit_button("Salvar"):
+            if not nome.strip():
+                st.warning("O nome do laboratório é obrigatório!")
             else:
-                administrador_id = admin_options.get(administrador_email) if administrador_email != 'Não atribuído' else None
-                lab_atualizado = {
-                    'nome': nome.strip(),
-                    'descricao': descricao.strip(),
-                    'capacidade': int(capacidade),
-                    'administrador_id': administrador_id
-                }
-                try:
-                    response = supabase.table('laboratorios').update(lab_atualizado).eq('id', lab['id']).execute()
-                    st.success('Laboratório atualizado com sucesso!')
-                    st.rerun()
-                except Exception as e:
-                    st.error(f'Erro ao atualizar o laboratório: {e}')
+                if admin_escolhido != "Não atribuído":
+                    administrador_id = admin_map[admin_escolhido]
+                else:
+                    administrador_id = None
+                
+                criar_laboratorio(nome.strip(), descricao.strip(), capacidade, administrador_id)
+                st.experimental_rerun()
 
-def confirmar_exclusao_laboratorio(lab_id):
-    try:
-        # Obter o laboratório pelo ID
-        response = supabase.table('laboratorios').select('nome').eq('id', lab_id).execute()
-        if not response.data:
-            st.error('Laboratório não encontrado.')
-            st.session_state['confirm_delete_lab_id'] = None  # Resetar o estado
-            return
-        lab = response.data[0]
-        st.warning(f"Tem certeza que deseja excluir o laboratório **{lab['nome']}**? Esta ação não pode ser desfeita.")
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button('❌ Confirmar Exclusão', key=f'confirm_delete_lab_{lab_id}'):
-                try:
-                    response = supabase.table('laboratorios').delete().eq('id', lab_id).execute()
-                    st.success('Laboratório excluído com sucesso!')
-                    st.session_state['confirm_delete_lab_id'] = None  # Resetar o estado
-                    st.rerun()
-                except Exception as e:
-                    st.error(f'Erro ao excluir o laboratório: {e}')
-                    st.session_state['confirm_delete_lab_id'] = None  # Resetar o estado
-        with col2:
-            if st.button('Cancelar', key=f'cancel_delete_lab_{lab_id}'):
-                st.session_state['confirm_delete_lab_id'] = None  # Resetar o estado
-                st.rerun()
-    except Exception as e:
-        st.error(f'Erro ao obter o laboratório: {e}')
-        st.session_state['confirm_delete_lab_id'] = None  # Resetar o estado
+@error_handler
+def criar_laboratorio(nome, descricao, capacidade, administrador_id):
+    """
+    Cria um novo laboratório no Supabase.
+    """
+    novo_lab = {
+        'nome': nome,
+        'descricao': descricao,
+        'capacidade': capacidade,
+        'administrador_id': administrador_id
+    }
+    supabase.table('laboratorios').insert(novo_lab).execute()
+    success_message("Laboratório criado com sucesso!")
+
+def editar_laboratorio_form(lab):
+    """
+    Exibe um formulário para editar os dados de um laboratório existente.
+    """
+    st.subheader(f"Editando Laboratório: {lab['nome']}")
+    with st.form(key=f"form_editar_lab_{lab['id']}"):
+        nome_novo = st.text_input("Nome do Laboratório:", value=lab['nome'])
+        descricao_nova = st.text_area("Descrição:", value=lab.get('descricao',''))
+        capacidade_nova = st.number_input("Capacidade:", value=lab.get('capacidade', 0), step=1)
+        
+        # Selecionar administrador responsável
+        admins = [u for u in carregar_usuarios() if u['tipo_usuario'] == 'admlab']
+        admin_map = {adm['email']: adm['id'] for adm in admins}
+        admin_emails = list(admin_map.keys())
+        admin_emails.insert(0, "Não atribuído")
+        
+        # Descobrir o email atual do administrador
+        admin_atual_email = None
+        if lab.get('administrador_id'):
+            resp_admin = supabase.table('users').select('email').eq('id', lab['administrador_id']).execute().data
+            if resp_admin:
+                admin_atual_email = resp_admin[0]['email']
+        
+        # Se não houver admin_atual_email, usar "Não atribuído" como default
+        if admin_atual_email and admin_atual_email in admin_emails:
+            index_admin = admin_emails.index(admin_atual_email)
+        else:
+            index_admin = 0
+        
+        admin_escolhido = st.selectbox("Administrador:", admin_emails, index=index_admin)
+        
+        if st.form_submit_button("Atualizar"):
+            if not nome_novo.strip():
+                st.warning("O nome do laboratório é obrigatório!")
+            else:
+                if admin_escolhido != "Não atribuído":
+                    administrador_id = admin_map[admin_escolhido]
+                else:
+                    administrador_id = None
+                
+                atualizar_laboratorio(
+                    lab['id'],
+                    nome_novo.strip(),
+                    descricao_nova.strip(),
+                    capacidade_nova,
+                    administrador_id
+                )
+                st.experimental_rerun()
+
+@error_handler
+def atualizar_laboratorio(lab_id, nome, descricao, capacidade, administrador_id):
+    """
+    Atualiza os dados de um laboratório no Supabase.
+    """
+    update_data = {
+        'nome': nome,
+        'descricao': descricao,
+        'capacidade': capacidade,
+        'administrador_id': administrador_id
+    }
+    supabase.table('laboratorios').update(update_data).eq('id', lab_id).execute()
+    
+    if 'editar_laboratorio' in st.session_state:
+        del st.session_state['editar_laboratorio']
+    
+    success_message("Laboratório atualizado com sucesso!")
+
+@error_handler
+def excluir_laboratorio(lab_id):
+    """
+    Exclui um laboratório do Supabase a partir de seu ID. 
+    Em caso de sucesso, exibe mensagem de sucesso e recarrega a página.
+    """
+    supabase.table('laboratorios').delete().eq('id', lab_id).execute()
+    success_message("Laboratório excluído com sucesso!")
+    
+    if 'editar_laboratorio' in st.session_state and st.session_state['editar_laboratorio']['id'] == lab_id:
+        del st.session_state['editar_laboratorio']
+    
+    st.experimental_rerun()
