@@ -38,17 +38,36 @@ def criar_superadmin():
                 except Exception as e:
                     st.error(f'Erro ao criar o superadministrador: {e}')
 def tela_login():
-    st.title("📅 LabManager")  # Título do sistema
-    st.subheader("Sistema de Agendamento de Laboratórios")  # Nome da escola
-    st.write("**EEEP Professora Maria Célia Pinheiro Falcão**")  # Nome da escola
-    st.markdown("---")  # Linha separadora para organizar o layout
-    st.write("Por favor, faça o login para acessar o sistema.")
+    # Centraliza o título e a mensagem inicial
+    st.markdown(
+    """
+    <div style="text-align: center; margin-bottom: 1rem;">
+        <h2 style="margin-bottom: 0.6rem;">
+            🦉<span style="font-weight: 400;">Agenda</span><span style="font-weight: 700;">MCPF</span>
+        </h2>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+
     with st.form(key='login_form'):
-        email = st.text_input("Email")
-        senha = st.text_input("Senha", type='password')
+        # Campo de email com placeholder de exemplo
+        email = st.text_input(
+            label="Email",
+            placeholder="exemplo@prof.ce.gov.br"
+        )
+
+        # Campo de senha com placeholder de exemplo
+        senha = st.text_input(
+            label="Senha",
+            type='password',
+            placeholder="Digite sua senha"
+        )
+
         submitted = st.form_submit_button("Login")
         if submitted:
-            # Realizar autenticação
+            # Lógica de autenticação (inalterada)
             try:
                 response = supabase.table('users').select('*').eq('email', email.strip()).execute()
                 if response.data:
@@ -66,6 +85,21 @@ def tela_login():
                     st.error("Email ou senha incorretos.")
             except Exception as e:
                 st.error(f"Erro ao realizar o login: {e}")
+
+    # Mensagem ao final e botão/link para envio de email
+    st.markdown(
+    """
+    <div style="text-align: center; margin-top: 1.5rem;">
+        <p style="color: #666; font-size: 0.9rem; margin-bottom: 0.8rem;">
+            Em caso de erro, Entre em contato com o administrador do sistema.
+        </p>
+        
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+
 def logout():
     st.session_state["autenticado"] = False
     st.session_state["tipo_usuario"] = None
