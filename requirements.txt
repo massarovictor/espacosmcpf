@@ -1,0 +1,5 @@
+bcrypt
+python-dotenv
+pandas
+streamlit
+st-supabase-connection==1.0.0
