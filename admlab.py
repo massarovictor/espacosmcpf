@@ -33,15 +33,6 @@ def painel_admin_laboratorio():
     except Exception as e:
         st.error(f'Erro ao carregar os laboratórios: {e}')
 
-    # Adicionar o botão de logout ao final
-    st.markdown("---")  # Linha separadora
-    if st.button("Logout"):
-        st.session_state["autenticado"] = False
-        st.session_state["tipo_usuario"] = None
-        st.session_state["email"] = None
-        st.session_state["usuario_id"] = None
-        st.rerun()
-
 def gerenciar_agendamentos_pendentes(laboratorio_id):
     st.subheader("Agendamentos Pendentes")
     try:
@@ -60,12 +51,13 @@ def exibir_agendamento_para_validacao(agendamento):
     try:
         # Obter informações adicionais
         # Obter nome do professor
-        response_user = supabase.table('users').select('email').eq('id', agendamento['usuario_id']).execute()
-        professor_email = response_user.data[0]['email'] if response_user.data else 'Desconhecido'
+        response_user = supabase.table('users').select('name').eq('id', agendamento['usuario_id']).execute()
+        professor_name = response_user.data[0]['name'] if response_user.data else 'Desconhecido'
 
         aulas = [f"{aula}ª Aula" for aula in agendamento['aulas']]
-        st.write(f"**Professor:** {professor_email}")
+        st.write(f"**Professor:** {professor_name}")
         st.write(f"**Data:** {agendamento['data_agendamento']}")
+
         st.write(f"**Aulas:** {', '.join(aulas)}")
         st.write(f"**Status:** {agendamento['status']}")
 

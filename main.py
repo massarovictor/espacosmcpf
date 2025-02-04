@@ -1,6 +1,7 @@
 # main.py
 import streamlit as st
 from auth import verificar_superadmin, criar_superadmin, tela_login
+from components import logout_button
 from superadmin import painel_superadmin
 from admlab import painel_admin_laboratorio
 from professor import painel_professor
@@ -29,3 +30,5 @@ else:
         painel_professor()
     else:
         st.error("Tipo de usuário desconhecido.")
+    
+    logout_button()

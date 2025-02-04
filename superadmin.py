@@ -19,14 +19,6 @@ def painel_superadmin():
     with tab2:
         gerenciar_laboratorios()
 
-    # Adicionar o botão de logout ao final
-    st.markdown("---")  # Linha separadora
-    if st.button("Logout"):
-        st.session_state["autenticado"] = False
-        st.session_state["tipo_usuario"] = None
-        st.session_state["email"] = None
-        st.session_state["usuario_id"] = None
-        st.rerun()
 
 def gerenciar_usuarios():
     st.subheader("Adicionar Novo Usuário")
@@ -35,7 +27,7 @@ def gerenciar_usuarios():
     st.subheader("Usuários Cadastrados")
     try:
         # Listar usuários existentes
-        response = supabase.table('users').select('id', 'email', 'tipo_usuario').execute()
+        response = supabase.table('users').select('id', 'name', 'email', 'tipo_usuario').execute()
         usuarios = response.data
         if not usuarios:
             st.info("Nenhum usuário cadastrado.")
@@ -43,10 +35,11 @@ def gerenciar_usuarios():
         else:
             for usuario in usuarios:
                 if usuario['tipo_usuario'] != 'superadmin':
-                    with st.expander(f"{usuario['email']} - {usuario['tipo_usuario']}"):
+                    with st.expander(f"{usuario['name'] or usuario['email']} - {usuario['tipo_usuario']}"):
                         if st.button("📝 Editar Usuário", key=f"edit_user_{usuario['id']}"):
                             st.session_state['editar_usuario'] = usuario
                             st.rerun()
+
 
                         if st.button("❌ Excluir Usuário", key=f"delete_user_{usuario['id']}"):
                             st.session_state['confirm_delete_user_id'] = usuario['id']
@@ -73,6 +66,7 @@ def gerenciar_usuarios():
 def adicionar_usuario():
     with st.expander("Adicionar Novo Usuário", expanded=True):
         with st.form(key='add_user_form'):
+            novo_nome = st.text_input("Nome", help="Digite o nome do usuário")
             col1, col2 = st.columns(2)
             with col1:
                 novo_email = st.text_input("Email", help="Digite um e-mail válido")
@@ -94,6 +88,7 @@ def adicionar_usuario():
                     # Hash da senha
                     hashed_password = bcrypt.hashpw(nova_senha.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
                     novo_usuario = {
+                        'name': novo_nome.strip(),
                         'email': novo_email.strip(),
                         'password': hashed_password,
                         'tipo_usuario': novo_tipo
@@ -108,6 +103,7 @@ def adicionar_usuario():
 def editar_usuario(usuario):
     st.subheader(f"Editar Usuário: {usuario['email']}")
     with st.form(key=f"edit_user_{usuario['id']}"):
+        novo_nome = st.text_input("Nome", value=usuario['name'], help="Atualize o nome do usuário")
         col1, col2 = st.columns(2)
         with col1:
 
@@ -131,6 +127,7 @@ def editar_usuario(usuario):
                 st.warning('O email não pode estar vazio.')
             else:
                 update_data = {
+                    'name': novo_nome.strip(),
                     'email': novo_email.strip(),
                     'tipo_usuario': novo_tipo
                 }
@@ -245,10 +242,11 @@ def adicionar_novo_laboratorio():
             descricao = st.text_area("Descrição", help="Descrição opcional do laboratório")
             # Selecionar um administrador
             try:
-                response_admins = supabase.table('users').select('id', 'email').eq('tipo_usuario', 'admlab').execute()
-                admin_options = {admin['email']: admin['id'] for admin in response_admins.data} if response_admins.data else {}
+                response_admins = supabase.table('users').select('id','name', 'email').eq('tipo_usuario', 'admlab').execute()
+                admin_options = {admin['name'] or admin['email']: admin['id'] for admin in response_admins.data} if response_admins.data else {}
             except Exception as e:
                 st.error(f'Erro ao carregar administradores: {e}')
+
                 admin_options = {}
             administrador_email = st.selectbox("Administrador do Laboratório (opcional)", options=['Não atribuído'] + list(admin_options.keys()), help="Selecione o administrador do laboratório")
             submitted = st.form_submit_button("✅ Adicionar Laboratório")
@@ -291,10 +289,11 @@ def editar_laboratorio(lab):
         descricao = st.text_area("Descrição", value=lab.get('descricao', ''), help="Atualize a descrição do laboratório")
         # Selecionar um administrador
         try:
-            response_admins = supabase.table('users').select('id', 'email').eq('tipo_usuario', 'admlab').execute()
-            admin_options = {admin['email']: admin['id'] for admin in response_admins.data} if response_admins.data else {}
+            response_admins = supabase.table('users').select('id', 'name', 'email').eq('tipo_usuario', 'admlab').execute()
+            admin_options = {admin['name'] or admin['email']: admin['id'] for admin in response_admins.data} if response_admins.data else {}
         except Exception as e:
             st.error(f'Erro ao carregar administradores: {e}')
+
             admin_options = {}
         current_admin_email = 'Não atribuído'
         if lab['administrador_id']:
