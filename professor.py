@@ -136,15 +136,15 @@ def listar_agendamentos_professor():
         st.error(f'Erro ao carregar seus agendamentos: {e}')
 
 def visualizar_agenda_laboratorio():
-    st.subheader("Agenda do Laboratório")
+    st.subheader("Agenda do Espaço")
     try:
         response_labs = supabase.table('laboratorios').select('id', 'nome').execute()
         laboratorios = response_labs.data
         if not laboratorios:
-            st.error('Nenhum laboratório disponível.')
+            st.error('Nenhum espaço disponível.')
             return
         lab_options = {lab['nome']: lab['id'] for lab in laboratorios}
-        lab_nome = st.selectbox("Escolha o Laboratório", options=list(lab_options.keys()), key="lab_select_agenda")
+        lab_nome = st.selectbox("Escolha o espaço", options=list(lab_options.keys()), key="lab_select_agenda")
         laboratorio_id = lab_options[lab_nome]
 
         data_inicio = st.date_input("Data Início", value=date.today())
