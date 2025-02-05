@@ -4,12 +4,12 @@ from datetime import date, datetime, timedelta
 import pandas as pd
 
 def painel_professor():
-    st.title("📅 Espaços MCPF")  # Título do sistema
+    st.title("🦉AgendaMCPF")  # Título do sistema
     st.subheader("Painel de Administração do Professor")
     st.write("**EEEP Professora Maria Célia Pinheiro Falcão**")
     st.markdown("---")  # Linha separadora para organizar o layout
 
-    tab1, tab2, tab3 = st.tabs(["Agendar Laboratório", "Meus Agendamentos", "Agenda do Laboratório"])
+    tab1, tab2, tab3 = st.tabs(["Agendar Espaço", "Meus Agendamentos", "Agenda dos Espaços"])
 
     with tab1:
         agendar_laboratorio()
