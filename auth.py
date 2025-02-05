@@ -41,8 +41,7 @@ def criar_superadmin():
                     st.error(f'Erro ao criar o superadministrador: {e}')
 
 def tela_login():
-    st.title("📅 Espaços MCPF")  # Título do sistema
-    st.subheader("Sistema de Agendamento de Espaços")  # Nome da escola
+    st.title("🦉AgendaMCPF")  # Título do sistema
     st.write("**EEEP Professora Maria Célia Pinheiro Falcão**")  # Nome da escola
     st.markdown("---")  # Linha separadora para organizar o layout
     st.write("Por favor, faça o login para acessar o sistema.")
