@@ -131,7 +131,7 @@ def listar_agendamentos_professor():
                 lab_nome = response_lab.data[0]['nome'] if response_lab.data else 'Desconhecido'
                 aulas = [f"{aula}ª Aula" for aula in sorted(agendamento['aulas'])]
                 descricao = agendamento.get('descricao', 'Sem descrição')
-                st.write(f"📅 **Data:** {agendamento['data_agendamento']} | **Laboratório:** {lab_nome} | **Aulas:** {', '.join(aulas)} | **Status:** {agendamento['status']} | **Descrição:** {descricao}")
+                st.write(f"📅 **Data:** {agendamento['data_agendamento']} | **Espaço:** {lab_nome} | **Aulas:** {', '.join(aulas)} | **Status:** {agendamento['status']} | **Descrição:** {descricao}")
     except Exception as e:
         st.error(f'Erro ao carregar seus agendamentos: {e}')
 
