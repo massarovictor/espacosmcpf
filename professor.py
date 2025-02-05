@@ -21,17 +21,17 @@ def painel_professor():
         visualizar_agenda_laboratorio()
 
 def agendar_laboratorio():
-    st.subheader("Agendar um Laboratório")
+    st.subheader("Agendar um Espaço")
     try:
         # Obter laboratórios disponíveis
         response = supabase.table('laboratorios').select('id', 'nome').execute()
         laboratorios = response.data
         if not laboratorios:
-            st.error('Nenhum laboratório disponível.')
+            st.error('Nenhum espaço disponível.')
             return
 
         lab_options = {lab['nome']: lab['id'] for lab in laboratorios}
-        lab_nome = st.selectbox("Escolha o Laboratório", options=list(lab_options.keys()))
+        lab_nome = st.selectbox("Escolha o Espaço", options=list(lab_options.keys()))
         laboratorio_id = lab_options[lab_nome]
 
         data_agendamento = st.date_input("Data do Agendamento", min_value=date.today())
@@ -52,9 +52,9 @@ def agendar_laboratorio():
                     confirmar_agendamento_professor(laboratorio_id, data_agendamento, aulas_selecionadas, descricao)
                 else:
                     aulas_conflito_str = ', '.join([f"{aula}ª Aula" for aula in aulas_conflito])
-                    st.error(f'O laboratório não está disponível nas seguintes aulas: {aulas_conflito_str}')
+                    st.error(f'O espaço não está disponível nas seguintes aulas: {aulas_conflito_str}')
     except Exception as e:
-        st.error(f'Erro ao agendar laboratório: {e}')
+        st.error(f'Erro ao agendar espaço: {e}')
 
 def verificar_disponibilidade(laboratorio_id, data_agendamento, aulas_numeros):
     try:
@@ -195,4 +195,4 @@ def visualizar_agenda_laboratorio():
                     st.write("Não há horários fixos ou agendamentos para esta data.")
                 st.markdown("---")
     except Exception as e:
-        st.error(f'Erro ao carregar a agenda do laboratório: {e}')
+        st.error(f'Erro ao carregar a agenda do espaço: {e}')
