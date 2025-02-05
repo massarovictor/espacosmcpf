@@ -13,7 +13,7 @@ def painel_superadmin():
     st.subheader("Painel de Administração Geral")
     st.write("**EEEP Professora Maria Célia Pinheiro Falcão**")  # Nome da escola
     st.markdown("---")  # Linha separadora para organizar o layout
-    tab1, tab2 = st.tabs(["Gerenciar Usuários", "Gerenciar Laboratórios"])
+    tab1, tab2 = st.tabs(["Gerenciar Usuários", "Gerenciar Espaços"])
 
     with tab1:
         gerenciar_usuarios()
@@ -71,7 +71,7 @@ def gerenciar_laboratorios():
     st.subheader("Adicionar Novo Espaço")
     adicionar_novo_laboratorio()
     
-    st.subheader("Laboratórios Cadastrados")
+    st.subheader("Espaços Cadastrados")
     try:
         response = supabase.table('laboratorios').select('*').execute()
         laboratorios = response.data
