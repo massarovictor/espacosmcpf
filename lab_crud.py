@@ -21,7 +21,7 @@ def adicionar_novo_laboratorio():
 
                 admin_options = {}
             administrador_email = st.selectbox("Administrador do Espaço (opcional)", options=['Não atribuído'] + list(admin_options.keys()), help="Selecione o administrador do Espaço")
-            submitted = st.form_submit_button("✅ Adicionar Laboratório")
+            submitted = st.form_submit_button("✅ Adicionar Espaço")
             if submitted:
                 if nome.strip() == '':
                     st.warning('O nome do Espaço é obrigatório.')
@@ -55,10 +55,10 @@ def editar_laboratorio(lab):
     with st.form(key=f'edit_lab_form_{lab["id"]}'):
         col1, col2 = st.columns(2)
         with col1:
-            nome = st.text_input("Nome do Espaço", value=lab['nome'], help="Atualize o nome do laboratório")
+            nome = st.text_input("Nome do Espaço", value=lab['nome'], help="Atualize o nome do espaço")
         with col2:
-            capacidade = st.number_input("Capacidade", min_value=0, step=1, value=lab.get('capacidade') or 0, help="Atualize a capacidade do laboratório")
-        descricao = st.text_area("Descrição", value=lab.get('descricao', ''), help="Atualize a descrição do Espaço")
+            capacidade = st.number_input("Capacidade", min_value=0, step=1, value=lab.get('capacidade') or 0, help="Atualize a capacidade do espaço")
+        descricao = st.text_area("Descrição", value=lab.get('descricao', ''), help="Atualize a descrição do espaço")
         # Selecionar um administrador
         try:
             response_admins = supabase.table('users').select('id', 'name', 'email').eq('tipo_usuario', 'admlab').execute()
@@ -95,7 +95,7 @@ def editar_laboratorio(lab):
                     st.success('Espaço atualizado com sucesso!')
                     st.rerun()
                 except Exception as e:
-                    st.error(f'Erro ao atualizar o Espaço: {e}')
+                    st.error(f'Erro ao atualizar o espaço: {e}')
 
 
 
