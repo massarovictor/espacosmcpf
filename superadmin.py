@@ -7,7 +7,7 @@ from user_crud import adicionar_usuario, confirmar_exclusao_usuario, editar_usua
 from database import supabase
 
 def painel_superadmin():
-    st.title("📅 Espaços MCPF")  # Título do sistema
+    st.title("🦉AgendaMCPF")  # Título do sistema
 
 
     st.subheader("Painel de Administração Geral")
@@ -68,7 +68,7 @@ def gerenciar_usuarios():
 
 
 def gerenciar_laboratorios():
-    st.subheader("Adicionar Novo Laboratório")
+    st.subheader("Adicionar Novo Espaço")
     adicionar_novo_laboratorio()
     
     st.subheader("Laboratórios Cadastrados")
@@ -85,7 +85,7 @@ def gerenciar_laboratorios():
             confirmar_exclusao_laboratorio(st.session_state['confirm_delete_lab_id'])
 
         if not laboratorios:
-            st.info("Nenhum laboratório cadastrado.")
+            st.info("Nenhum Espaço cadastrado.")
 
             return
         
