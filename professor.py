@@ -64,8 +64,8 @@ def verificar_disponibilidade(laboratorio_id, data_agendamento, aulas_numeros):
         response_horarios_fixos = supabase.table('horarios_fixos').select('*').eq('laboratorio_id', laboratorio_id).eq('dia_semana', dia_semana).execute()
         horarios_fixos = response_horarios_fixos.data
         for horario_fixo in horarios_fixos:
-            data_inicio = datetime.strptime(horario_fixo['data_inicio'], '%Y-%m-%d').date()
-            data_fim = datetime.strptime(horario_fixo['data_fim'], '%Y-%m-%d').date()
+            data_inicio = datetime.strptime(horario_fixo['data_inicio'], '%d-%m-%Y').date()
+            data_fim = datetime.strptime(horario_fixo['data_fim'], '%d-%m-%Y').date()
             if data_inicio <= data_agendamento <= data_fim:
                 aulas_fixas = horario_fixo['aulas']
                 aulas_indisponiveis.update(aulas_fixas)
@@ -196,8 +196,8 @@ def visualizar_agenda_laboratorio():
             response_horarios_fixos = supabase.table('horarios_fixos').select('*').eq('laboratorio_id', laboratorio_id).execute()
             horarios_fixos = response_horarios_fixos.data
             for horario in horarios_fixos:
-                data_inicio_fixo = datetime.strptime(horario['data_inicio'], '%Y-%m-%d').date()
-                data_fim_fixo = datetime.strptime(horario['data_fim'], '%Y-%m-%d').date()
+                data_inicio_fixo = datetime.strptime(horario['data_inicio'], '%d-%m-%Y').date()
+                data_fim_fixo = datetime.strptime(horario['data_fim'], '%d-%m-%Y').date()
                 for data in datas:
                     if data_inicio_fixo <= data <= data_fim_fixo:
                         dia_semana = data.weekday()
@@ -208,7 +208,7 @@ def visualizar_agenda_laboratorio():
             response_agendamentos = supabase.table('agendamentos').select('*').eq('laboratorio_id', laboratorio_id).gte('data_agendamento', data_inicio.isoformat()).lte('data_agendamento', data_fim.isoformat()).eq('status', 'aprovado').execute()
             agendamentos = response_agendamentos.data
             for agendamento in agendamentos:
-                data_ag = datetime.strptime(agendamento['data_agendamento'], '%Y-%m-%d').date()
+                data_ag = datetime.strptime(agendamento['data_agendamento'], '%d-%m-%Y').date()
                 aulas = ', '.join([f"{aula}ª Aula" for aula in sorted(agendamento['aulas'])])
                 response_user = supabase.table('users').select('email').eq('id', agendamento['usuario_id']).execute()
                 professor_email = response_user.data[0]['email'] if response_user.data else 'Desconhecido'
