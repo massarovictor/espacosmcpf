@@ -136,10 +136,10 @@ def confirmar_agendamento_professor(laboratorio_id, data_agendamento, aulas_sele
                 subject = "Confirmação de Solicitação de Agendamento"
                 body = (
                     f"Olá,\n\n"
-                    f"Seu agendamento para o espaço **{nome_laboratorio}** na data {data_agendamento} "
-                    f"foi solicitado com sucesso e está pendente de aprovação.\n\n"
+                    f"Seu agendamento para o espaço {nome_laboratorio} marcado para o dia {data_agendamento} foi solicitado com sucesso e está pendente de aprovação."
                     f"Descrição da atividade: {descricao}\n\n"
-                    f"Atenciosamente,\nEquipe AgendaMCPF"
+                    "Caso necessite de esclarecimentos adicionais ou tenha dúvidas, por favor, entre em contato conosco.\n\n"
+                    "Atenciosamente,\nEquipe 🦉AgendaMCPF"
                 )
                 send_email(subject, body, email_usuario)
         except Exception as e:
