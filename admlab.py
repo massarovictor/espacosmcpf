@@ -150,11 +150,12 @@ def atualizar_status_agendamento(agendamento_id, novo_status):
                 subject = f"Agendamento {novo_status.capitalize()}"
                 body = (
                     f"Olá,\n\n"
-                    f"Seu agendamento para o Espaço (ID: {agendamento_info['laboratorio_id']}) na data {agendamento_info['data_agendamento']} "
-                    f"foi {novo_status}.\n\n"
+                    f"Informamos que o seu agendamento para o espaço {nome_laboratorio}, marcado para o dia {data_agendamento}, foi {novo_status}.\n\n"
                     f"Descrição da atividade: {agendamento_info.get('descricao', 'Sem descrição')}\n\n"
-                    "Atenciosamente,\nEquipe AgendaMCPF"
+                    "Caso necessite de esclarecimentos adicionais ou tenha dúvidas, por favor, entre em contato conosco.\n\n"
+                    "Atenciosamente,\nEquipe 🦉AgendaMCPF"
                 )
+
                 send_email(subject, body, email_usuario)
         st.rerun()
     except Exception as e:
