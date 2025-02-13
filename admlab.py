@@ -2,6 +2,8 @@
 import streamlit as st
 from datetime import date
 from database import supabase
+from email_service import send_email  # Certifique-se de importar o módulo de e-mail
+
 
 def painel_admin_laboratorio():
     st.title("📅 Espaços MCPF")  # Título do sistema
@@ -22,16 +24,74 @@ def painel_admin_laboratorio():
         for lab in laboratorios:
             st.subheader(f"Laboratório de {lab['nome']}")
 
-            tab1, tab2 = st.tabs(["Agendamentos Pendentes", "Horários Fixos"])
+            tab1, tab2, tab3 = st.tabs(["Agendamentos Pendentes", "Horários Fixos", "Histórico de Atividades"])
 
             with tab1:
                 gerenciar_agendamentos_pendentes(lab['id'])
 
             with tab2:
                 gerenciar_horarios_fixos(lab['id'])
+            
+            with tab3:
+                visualizar_historico_atividades(lab['id'])
 
     except Exception as e:
         st.error(f'Erro ao carregar os laboratórios: {e}')
+
+
+import streamlit as st
+from datetime import date
+from database import supabase
+
+def visualizar_historico_atividades(laboratorio_id):
+    st.subheader("📜 Histórico de Atividades")
+
+    try:
+        # Buscar todos os agendamentos passados para este laboratório
+        hoje = date.today().isoformat()  # Data de hoje para comparação
+        response_agendamentos = (
+            supabase.table('agendamentos')
+            .select('id', 'usuario_id', 'data_agendamento', 'aulas', 'descricao', 'status')
+            .eq('laboratorio_id', laboratorio_id)
+            .lt('data_agendamento', hoje)  # Apenas agendamentos passados
+            .execute()
+        )
+        agendamentos = response_agendamentos.data
+
+        if not agendamentos:
+            st.info('Nenhuma atividade passada registrada neste espaço.')
+            return
+
+        # Criar uma lista formatada para exibição
+        historico = []
+        for agendamento in agendamentos:
+            # Buscar nome do professor
+            response_user = supabase.table('users').select('name').eq('id', agendamento['usuario_id']).execute()
+            nome_professor = response_user.data[0]['name'] if response_user.data else "Desconhecido"
+
+            # Formatar a lista de aulas
+            aulas = ', '.join([f"{aula}ª Aula" for aula in sorted(agendamento['aulas'])])
+
+            historico.append({
+                "Professor(a)": nome_professor,
+                "Data": agendamento['data_agendamento'],
+                "Aulas": aulas,
+                "Descrição": agendamento['descricao'],
+                "Status": agendamento['status'].capitalize()
+            })
+
+        # Criar um container para alinhar com os demais elementos da interface
+        with st.container():
+            st.write("📌 **Lista de atividades já realizadas:**")
+            
+            # Exibir a tabela com layout responsivo ocupando toda a largura disponível
+            st.dataframe(
+                historico,
+                use_container_width=True  # Expande a tabela para ocupar toda a largura disponível
+            )
+
+    except Exception as e:
+        st.error(f'Erro ao carregar o histórico de atividades: {e}')
 
 def gerenciar_agendamentos_pendentes(laboratorio_id):
     st.subheader("Agendamentos Pendentes")
@@ -73,8 +133,29 @@ def exibir_agendamento_para_validacao(agendamento):
 
 def atualizar_status_agendamento(agendamento_id, novo_status):
     try:
+        # Atualiza o status do agendamento no banco de dados
         response = supabase.table('agendamentos').update({'status': novo_status}).eq('id', agendamento_id).execute()
         st.success(f'Agendamento {novo_status} com sucesso!')
+        
+        # Recupera os detalhes do agendamento para montar a notificação
+        response_agendamento = supabase.table('agendamentos').select('usuario_id', 'laboratorio_id', 'data_agendamento', 'descricao').eq('id', agendamento_id).execute()
+        if response_agendamento.data:
+            agendamento_info = response_agendamento.data[0]
+            usuario_id = agendamento_info['usuario_id']
+            # Recupera o e-mail do professor
+            response_user = supabase.table('users').select('email').eq('id', usuario_id).execute()
+            email_usuario = response_user.data[0]['email'] if response_user.data else None
+            
+            if email_usuario:
+                subject = f"Agendamento {novo_status.capitalize()}"
+                body = (
+                    f"Olá,\n\n"
+                    f"Seu agendamento para o Espaço (ID: {agendamento_info['laboratorio_id']}) na data {agendamento_info['data_agendamento']} "
+                    f"foi {novo_status}.\n\n"
+                    f"Descrição da atividade: {agendamento_info.get('descricao', 'Sem descrição')}\n\n"
+                    "Atenciosamente,\nEquipe AgendaMCPF"
+                )
+                send_email(subject, body, email_usuario)
         st.rerun()
     except Exception as e:
         st.error(f'Erro ao atualizar o status do agendamento: {e}')
