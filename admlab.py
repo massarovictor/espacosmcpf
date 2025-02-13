@@ -137,6 +137,10 @@ def atualizar_status_agendamento(agendamento_id, novo_status):
         response = supabase.table('agendamentos').update({'status': novo_status}).eq('id', agendamento_id).execute()
         st.success(f'Agendamento {novo_status} com sucesso!')
         
+        # Obter o nome do laboratório pelo ID
+        response_lab = supabase.table('laboratorios').select('nome').eq('id', laboratorio_id).execute()
+        nome_laboratorio = response_lab.data[0]['nome'] if response_lab.data else "Laboratório Desconhecido"        
+        
         # Recupera os detalhes do agendamento para montar a notificação
         response_agendamento = supabase.table('agendamentos').select('usuario_id', 'laboratorio_id', 'data_agendamento', 'descricao').eq('id', agendamento_id).execute()
         if response_agendamento.data:
