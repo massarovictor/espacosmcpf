@@ -1,5 +1,6 @@
-import streamlit as st
+from email_service import send_email  # Importe o módulo de e-mail
 from database import supabase
+import streamlit as st
 from datetime import date, datetime, timedelta
 import pandas as pd
 
@@ -97,8 +98,23 @@ def verificar_duplo_agendamento(usuario_id,laboratorio_id, data_agendamento, aul
         st.error(e)
     
 
+# professor.py
+from email_service import send_email  # Importa o módulo de e-mail
+from database import supabase
+import streamlit as st
+from datetime import date
+
 def confirmar_agendamento_professor(laboratorio_id, data_agendamento, aulas_selecionadas, descricao):
     usuario_id = st.session_state["usuario_id"]
+
+    # Obter o e-mail do usuário a partir do Supabase
+    response_user = supabase.table('users').select('email').eq('id', usuario_id).execute()
+    email_usuario = response_user.data[0]['email'] if response_user.data else None
+
+    # Obter o nome do laboratório pelo ID
+    response_lab = supabase.table('laboratorios').select('nome').eq('id', laboratorio_id).execute()
+    nome_laboratorio = response_lab.data[0]['nome'] if response_lab.data else "Laboratório Desconhecido"
+
     novo_agendamento = {
         'usuario_id': usuario_id,
         'laboratorio_id': laboratorio_id,
@@ -107,15 +123,30 @@ def confirmar_agendamento_professor(laboratorio_id, data_agendamento, aulas_sele
         'descricao': descricao,
         'status': 'pendente'
     }
-    verificacao = verificar_duplo_agendamento(usuario_id,laboratorio_id, data_agendamento, aulas_selecionadas)
-    if (verificacao == 1):
+    
+    verificacao = verificar_duplo_agendamento(usuario_id, laboratorio_id, data_agendamento, aulas_selecionadas)
+    
+    if verificacao == 1:
         try:
             response = supabase.table('agendamentos').insert(novo_agendamento).execute()
             st.success('Agendamento solicitado com sucesso! Aguardando aprovação.')
+
+            # Envio de e-mail de confirmação da solicitação com o nome do laboratório
+            if email_usuario:
+                subject = "Confirmação de Solicitação de Agendamento"
+                body = (
+                    f"Olá,\n\n"
+                    f"Seu agendamento para o espaço **{nome_laboratorio}** na data {data_agendamento} "
+                    f"foi solicitado com sucesso e está pendente de aprovação.\n\n"
+                    f"Descrição da atividade: {descricao}\n\n"
+                    f"Atenciosamente,\nEquipe AgendaMCPF"
+                )
+                send_email(subject, body, email_usuario)
         except Exception as e:
             st.error(f'Erro ao salvar o agendamento: {e}')
     else:
-        st.error("Você já requisitou esse agendamento. Espere a revisão do administrador")
+        st.error("Você já requisitou esse agendamento. Espere a revisão do administrador.")
+
 
 def listar_agendamentos_professor():
     st.subheader("Meus Agendamentos")
