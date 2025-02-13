@@ -3,3 +3,5 @@ python-dotenv
 pandas
 streamlit
 st-supabase-connection==1.0.0
+email.mime.text
+logging
